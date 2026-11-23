@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Daily Draw — Tickets confirmed</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#0A6B48}a:hover{color:#08513A}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #F6F5F1; font-family: Inter, system-ui, sans-serif; color: #15171A; display: flex; flex-direction: column; padding: 40px 20px 28px; gap: 20px">
+  <div style="display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center">
+    <div style="width: 64px; height: 64px; border-radius: 999px; background: #E6F3EC; display: flex; align-items: center; justify-content: center">
+      <svg aria-hidden="true" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#0A6B48" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+    </div>
+    <h1 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 28px; letter-spacing: -0.02em">You're in tonight's draw</h1>
+    <p style="margin: 0; font-size: 15px; color: #5B6068">Draw at 9:00pm. We'll send the result by SMS and WhatsApp.</p>
+  </div>
+
+  <section aria-label="Your tickets" style="background: #FFFFFF; border: 1px solid #E3E1DA; border-radius: 20px; overflow: hidden">
+    <div style="display: flex; align-items: center; gap: 16px; padding: 18px 18px 16px; border-bottom: 1px dashed #D6D3CA">
+      <div style="width: 72px; height: 72px; border-radius: 16px; background: #0E2B22; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 36px">42</div>
+      <div style="display: flex; flex-direction: column; gap: 4px">
+        <div style="font-weight: 700; font-size: 18px">2 tickets · ₦200</div>
+        <div style="font-size: 14px; color: #5B6068">Draw #313 · Mon 23 Nov</div>
+      </div>
+    </div>
+    <dl style="margin: 0; padding: 14px 18px 18px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 12px; column-gap: 12px; font-size: 14px">
+      <div><dt style="color: #5B6068; font-size: 12px; font-weight: 500">Ticket IDs</dt><dd style="margin: 2px 0 0; font-weight: 600">DD-81Q2, DD-81Q3</dd></div>
+      <div><dt style="color: #5B6068; font-size: 12px; font-weight: 500">Wallet now</dt><dd style="margin: 2px 0 0; font-weight: 600">₦1,238</dd></div>
+      <div><dt style="color: #5B6068; font-size: 12px; font-weight: 500">Sales close</dt><dd style="margin: 2px 0 0; font-weight: 600">8:45pm</dd></div>
+      <div><dt style="color: #5B6068; font-size: 12px; font-weight: 500">Used today</dt><dd style="margin: 2px 0 0; font-weight: 600">₦400 of ₦1,000</dd></div>
+    </dl>
+  </section>
+
+  <section aria-label="Tonight's promise" style="background: #EFEDE6; border-radius: 16px; padding: 14px 16px; display: flex; gap: 12px">
+    <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0A6B48" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex: none; margin-top: 1px"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>
+    <div style="display: flex; flex-direction: column; gap: 4px; font-size: 14px">
+      <div style="font-weight: 600">Tonight's result is already locked</div>
+      <div style="color: #4A4F57">We published a sealed code before sales opened: <span style="font-family: ui-monospace, Menlo, monospace; font-size: 13px">9f3c…a71e</span>. After the draw, anyone can open it and check nothing changed.</div>
+    </div>
+  </section>
+
+  <div style="margin-top: auto; display: flex; flex-direction: column; gap: 10px">
+    <a href="Pick.dc.html" style="display: flex; align-items: center; justify-content: center; min-height: 56px; border-radius: 14px; background: #0A6B48; color: #FFFFFF; font-weight: 700; font-size: 17px; text-decoration: none">Play another number</a>
+    <a href="Main.dc.html" style="display: flex; align-items: center; justify-content: center; min-height: 52px; border-radius: 14px; background: #FFFFFF; border: 1px solid #E3E1DA; color: #15171A; font-weight: 600; font-size: 16px; text-decoration: none; box-sizing: border-box">Done</a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

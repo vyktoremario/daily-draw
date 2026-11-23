@@ -1,0 +1,28 @@
+{
+  "name": "@daily-draw/api",
+  "version": "0.0.0",
+  "private": true,
+  "description": "NestJS API: the only service that moves money",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx watch --env-file-if-exists=../../.env src/main.ts",
+    "start": "node dist/main.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@daily-draw/db": "workspace:*",
+    "@daily-draw/shared": "workspace:*",
+    "@nestjs/common": "^12.6.0",
+    "@nestjs/core": "^12.6.0",
+    "@nestjs/platform-fastify": "^12.6.0",
+    "kysely": "^0.29.9",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2"
+  },
+  "devDependencies": {
+    "@daily-draw/config": "workspace:*",
+    "tsx": "^4.23.15"
+  }
+}

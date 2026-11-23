@@ -1,0 +1,31 @@
+{
+  "name": "@daily-draw/db",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Postgres schema, migrations and typed Kysely client",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "migrate": "tsx --env-file-if-exists=../../.env src/migrate.ts latest",
+    "migrate:down": "tsx --env-file-if-exists=../../.env src/migrate.ts down"
+  },
+  "dependencies": {
+    "kysely": "^0.29.9",
+    "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "@daily-draw/config": "workspace:*",
+    "@types/pg": "^8.23.1",
+    "tsx": "^4.23.15"
+  }
+}

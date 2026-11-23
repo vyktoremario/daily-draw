@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Daily Draw — Verify draw #312</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#0A6B48}a:hover{color:#08513A}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #F6F5F1; font-family: Inter, system-ui, sans-serif; color: #15171A; display: flex; flex-direction: column">
+  <header style="display: flex; align-items: center; gap: 8px; padding: 16px 12px 8px">
+    <a href="Results.dc.html" aria-label="Back to results" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 12px; color: #15171A">
+      <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"></path></svg>
+    </a>
+    <div style="display: flex; flex-direction: column">
+      <h1 style="margin: 0; font-size: 18px; font-weight: 700">Check draw #312</h1>
+      <span style="font-size: 13px; color: #5B6068">Sun 22 Nov · winning number 42</span>
+    </div>
+  </header>
+
+  <main style="flex: 1; padding: 8px 20px 24px; display: flex; flex-direction: column; gap: 14px">
+    <section aria-live="polite" style="border-radius: 18px; padding: 16px 18px; display: flex; align-items: center; gap: 14px; {{bannerStyle}}">
+      <div style="width: 44px; height: 44px; border-radius: 999px; background: rgba(255,255,255,0.16); display: flex; align-items: center; justify-content: center; flex: none">
+        <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4-3 7.5-7 9-4-1.5-7-5-7-9V6z"></path><path d="M9 12l2 2 4-4"></path></svg>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 2px">
+        <div style="font-weight: 700; font-size: 17px">{{bannerTitle}}</div>
+        <div style="font-size: 14px; opacity: 0.85">{{bannerText}}</div>
+      </div>
+    </section>
+
+    <ol style="margin: 0; padding: 0; list-style: none; background: #FFFFFF; border: 1px solid #E3E1DA; border-radius: 18px; display: flex; flex-direction: column">
+      <sc-for list="{{checks}}" as="c" hint-placeholder-count="5">
+        <li style="display: flex; gap: 14px; padding: 14px 16px; {{c.divider}}">
+          <div style="width: 28px; height: 28px; border-radius: 999px; flex: none; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; {{c.dotStyle}}">
+            <sc-if value="{{c.done}}" hint-placeholder-val="{{ true }}">
+              <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+            </sc-if>
+            <sc-if value="{{c.pending}}" hint-placeholder-val="{{ false }}">{{c.num}}</sc-if>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 3px">
+            <div style="font-weight: 600; font-size: 15px">{{c.title}}</div>
+            <div style="font-size: 13px; color: #5B6068; line-height: 1.45">{{c.detail}}</div>
+          </div>
+        </li>
+      </sc-for>
+    </ol>
+
+    <p style="margin: 0; font-size: 13px; color: #5B6068; text-align: center; line-height: 1.5">These checks run on your phone, using only public data.<br>You don't have to take our word for it.</p>
+
+    <div style="margin-top: auto; display: flex; flex-direction: column; gap: 10px">
+      <button type="button" onClick="{{rerun}}" style="min-height: 52px; border-radius: 14px; border: 1px solid #CFE6DA; background: #E6F3EC; color: #0A6B48; font-family: Inter, sans-serif; font-weight: 700; font-size: 16px; cursor: pointer">Run the checks again</button>
+      <a href="#maths" style="text-align: center; font-size: 14px; font-weight: 600; min-height: 44px; display: flex; align-items: center; justify-content: center">See the full maths</a>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { step: 5 };
+  }
+  componentWillUnmount() { clearInterval(this.timer); }
+  renderVals() {
+    const step = this.state.step;
+    const items = [
+      ['The sealed code matches', 'Published before sales opened (Sat 9:01pm): 9f3c…a71e. Opened after the draw, it matches.'],
+      ['The public random value is real', 'drand round 13,401,822, signed by the League of Entropy after sales closed.'],
+      ['Tickets were frozen at 8:45pm', '4,133 tickets fingerprinted on Base before the random value existed.'],
+      ['Your 2 tickets were counted', 'DD-80K1 and DD-80K2 are inside the fingerprint.'],
+      ['42 comes out of the maths', 'SHA-256(code + random value + fingerprint), remainder after dividing by 100 = 42.']
+    ];
+    const checks = items.map((it, i) => {
+      const done = i < step;
+      return {
+        num: String(i + 1), title: it[0], detail: it[1], done, pending: !done,
+        dotStyle: done ? 'background: #0A6B48; color: #FFFFFF' : 'background: #EFEDE6; color: #5B6068',
+        divider: i < items.length - 1 ? 'border-bottom: 1px solid #EEECE6' : ''
+      };
+    });
+    const allDone = step >= items.length;
+    return {
+      checks,
+      bannerStyle: allDone ? 'background: #0A6B48; color: #FFFFFF' : 'background: #0E2B22; color: #FFFFFF',
+      bannerTitle: allDone ? 'All 5 checks passed' : 'Checking… ' + step + ' of 5',
+      bannerText: allDone ? 'Nobody could have picked 42 in advance.' : 'Recomputing the draw on this phone',
+      rerun: () => {
+        clearInterval(this.timer);
+        this.setState({ step: 0 });
+        this.timer = setInterval(() => {
+          if (this.state.step >= 5) { clearInterval(this.timer); return; }
+          this.setState({ step: this.state.step + 1 });
+        }, 600);
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>

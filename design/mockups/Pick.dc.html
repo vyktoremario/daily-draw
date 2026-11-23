@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Daily Draw — Pick numbers</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#0A6B48}a:hover{color:#08513A}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #F6F5F1; font-family: Inter, system-ui, sans-serif; color: #15171A; display: flex; flex-direction: column">
+  <header style="display: flex; align-items: center; gap: 8px; padding: 16px 12px 8px">
+    <a href="Main.dc.html" aria-label="Back to home" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 12px; color: #15171A">
+      <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"></path></svg>
+    </a>
+    <div style="display: flex; flex-direction: column">
+      <h1 style="margin: 0; font-size: 18px; font-weight: 700">Pick your number</h1>
+      <span style="font-size: 13px; color: #5B6068">Tonight's draw · 00 to 99 · closes 8:45pm</span>
+    </div>
+  </header>
+
+  <main style="flex: 1; padding: 8px 20px 20px; display: flex; flex-direction: column; gap: 16px">
+    <div aria-live="polite" style="display: flex; justify-content: center; gap: 12px; padding: 6px 0">
+      <div style="width: 84px; height: 100px; border-radius: 18px; background: #FFFFFF; border: 2px solid #0A6B48; display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 56px">{{d1}}</div>
+      <div style="width: 84px; height: 100px; border-radius: 18px; background: #FFFFFF; border: 2px solid #0A6B48; display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 56px">{{d2}}</div>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 8px">
+      <span style="font-size: 13px; color: #5B6068; font-weight: 500">Favourites</span>
+      <sc-for list="{{favs}}" as="f" hint-placeholder-count="3">
+        <button type="button" onClick="{{f.pick}}" style="min-height: 44px; min-width: 52px; padding: 0 12px; border-radius: 999px; border: 1px solid #E3E1DA; background: #FFFFFF; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 17px; color: #15171A; cursor: pointer">{{f.n}}</button>
+      </sc-for>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px">
+      <sc-for list="{{keys}}" as="k" hint-placeholder-count="12">
+        <button type="button" onClick="{{k.press}}" aria-label="{{k.aria}}" style="{{k.style}}">{{k.label}}</button>
+      </sc-for>
+    </div>
+
+    <div style="display: flex; align-items: center; justify-content: space-between; background: #FFFFFF; border: 1px solid #E3E1DA; border-radius: 16px; padding: 10px 12px 10px 16px">
+      <div style="display: flex; flex-direction: column">
+        <span style="font-weight: 600; font-size: 15px">Tickets on this number</span>
+        <span style="font-size: 13px; color: #5B6068">₦100 each · up to 20 a day</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 6px">
+        <button type="button" onClick="{{dec}}" aria-label="One fewer ticket" style="width: 44px; height: 44px; border-radius: 12px; border: 1px solid #E3E1DA; background: #F6F5F1; font-size: 22px; font-weight: 600; color: #15171A; cursor: pointer">−</button>
+        <span style="min-width: 28px; text-align: center; font-weight: 700; font-size: 18px">{{count}}</span>
+        <button type="button" onClick="{{inc}}" aria-label="One more ticket" style="width: 44px; height: 44px; border-radius: 12px; border: 1px solid #E3E1DA; background: #F6F5F1; font-size: 22px; font-weight: 600; color: #15171A; cursor: pointer">+</button>
+      </div>
+    </div>
+
+    <div style="margin-top: auto; display: flex; flex-direction: column; gap: 10px">
+      <div style="font-size: 13px; color: #5B6068; text-align: center">Daily limit ₦1,000 · ₦200 used today</div>
+      <sc-if value="{{ready}}" hint-placeholder-val="{{ true }}">
+        <a href="Confirm.dc.html" style="display: flex; align-items: center; justify-content: center; min-height: 56px; border-radius: 14px; background: #0A6B48; color: #FFFFFF; font-weight: 700; font-size: 18px; text-decoration: none">{{buyLabel}}</a>
+      </sc-if>
+      <sc-if value="{{notReady}}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; align-items: center; justify-content: center; min-height: 56px; border-radius: 14px; background: #E3E1DA; color: #5B6068; font-weight: 700; font-size: 17px">Pick two digits</div>
+      </sc-if>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { digits: '42', count: 2 };
+  }
+  renderVals() {
+    const s = this.state;
+    const press = (d) => () => {
+      if (s.digits.length >= 2) this.setState({ digits: d });
+      else this.setState({ digits: s.digits + d });
+    };
+    const base = 'min-height: 60px; border-radius: 14px; border: 1px solid #E3E1DA; background: #FFFFFF; color: #15171A; cursor: pointer; font-family: Space Grotesk, sans-serif; font-weight: 700; font-size: 26px';
+    const soft = 'min-height: 60px; border-radius: 14px; border: 1px solid #CFE6DA; background: #E6F3EC; color: #0A6B48; cursor: pointer; font-family: Inter, sans-serif; font-weight: 700; font-size: 15px';
+    const digitKey = (d) => ({ label: d, aria: 'Digit ' + d, press: press(d), style: base });
+    const keys = ['1','2','3','4','5','6','7','8','9'].map(digitKey);
+    keys.push({ label: 'Lucky dip', aria: 'Pick a random number', style: soft, press: () => {
+      const n = Math.floor(Math.random() * 100);
+      this.setState({ digits: (n < 10 ? '0' : '') + n });
+    } });
+    keys.push(digitKey('0'));
+    keys.push({ label: 'Delete', aria: 'Delete last digit', style: soft, press: () => this.setState({ digits: s.digits.slice(0, -1) }) });
+    const favs = ['07', '42', '88'].map((n) => ({ n, pick: () => this.setState({ digits: n }) }));
+    const ready = s.digits.length === 2;
+    const total = (s.count * 100).toLocaleString('en-NG');
+    return {
+      d1: s.digits.charAt(0) || '–',
+      d2: s.digits.charAt(1) || '–',
+      keys, favs,
+      count: s.count,
+      dec: () => this.setState({ count: Math.max(1, s.count - 1) }),
+      inc: () => this.setState({ count: Math.min(8, s.count + 1) }),
+      ready, notReady: !ready,
+      buyLabel: 'Buy ' + s.count + (s.count === 1 ? ' ticket' : ' tickets') + ' on ' + s.digits + ' · ₦' + total
+    };
+  }
+}
+</script>
+</body>
+</html>

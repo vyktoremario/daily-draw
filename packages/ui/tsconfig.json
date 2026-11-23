@@ -1,0 +1,4 @@
+{
+  "extends": "@daily-draw/config/tsconfig/library.json",
+  "compilerOptions": { "lib": ["ES2023", "DOM"] }
+}

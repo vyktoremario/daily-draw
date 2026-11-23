@@ -1,0 +1,31 @@
+# Local development services. Play money only.
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: dailydraw
+      POSTGRES_PASSWORD: dailydraw
+      POSTGRES_DB: dailydraw
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U dailydraw']
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7
+    ports:
+      - '6379:6379'
+
+  anvil:
+    image: ghcr.io/foundry-rs/foundry:latest
+    entrypoint: ['anvil', '--host', '0.0.0.0', '--chain-id', '31337']
+    ports:
+      - '8545:8545'
+
+volumes:
+  pgdata:

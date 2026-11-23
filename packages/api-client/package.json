@@ -1,0 +1,6 @@
+{
+  "name": "@daily-draw/api-client",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Typed API client, generated from the OpenAPI spec (not yet generated)"
+}

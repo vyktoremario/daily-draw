@@ -1,0 +1,1 @@
+{ "extends": "@daily-draw/config/tsconfig/nest.json" }
