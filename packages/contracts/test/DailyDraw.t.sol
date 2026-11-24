@@ -23,7 +23,9 @@ contract DailyDrawTest is DailyDrawBase {
 
     function test_CannotInitializeTwice() public {
         vm.expectRevert(Initializable.InvalidInitialization.selector);
-        game.initialize(admin, usdc, rng, treasury, buyback, defaultParams(), firstCutoff + 1 days);
+        game.initialize(
+            admin, admin, usdc, rng, treasury, buyback, defaultParams(), firstCutoff + 1 days
+        );
     }
 
     function test_RejectsBadParams() public {

@@ -35,7 +35,8 @@ abstract contract DailyDrawBase is Test {
             referrersBps: 2_000,
             maxTicketsPerWallet: 20,
             drawInterval: 1 days,
-            referrerActiveDays: 30
+            referrerActiveDays: 30,
+            unclaimedPrizeDays: 30
         });
     }
 
@@ -56,7 +57,7 @@ abstract contract DailyDrawBase is Test {
     function deploy(address impl) internal returns (DailyDraw) {
         bytes memory init = abi.encodeCall(
             DailyDraw.initialize,
-            (admin, usdc, rng, treasury, buyback, defaultParams(), firstCutoff)
+            (admin, admin, usdc, rng, treasury, buyback, defaultParams(), firstCutoff)
         );
         return DailyDraw(address(new ERC1967Proxy(impl, init)));
     }
@@ -106,13 +107,17 @@ abstract contract DailyDrawBase is Test {
         game.claim(drawId, nums(number));
     }
 
-    /// @dev Everything the contract owes: unsettled draws' sales and fees, the rollover, unclaimed
+    /// @dev Everything the contract owes: unsettled draws' sales and fees (less refunds), the rollover, unclaimed
     ///      prizes and referral shares, referrers' balances, and the treasury and buy-back credits.
     function owed() internal view returns (uint256 total) {
         uint256 last = game.currentDrawId();
         for (uint256 id = 1; id <= last; ++id) {
             DailyDraw.Draw memory d = game.getDraw(id);
-            if (d.status != DailyDraw.Status.Settled) total += uint256(d.sales) + d.fees;
+            if (d.status == DailyDraw.Status.Settled || d.status == DailyDraw.Status.Swept) {
+                continue;
+            }
+            // Open, closed or voided: its money is still held for it, less any refunds.
+            total += uint256(d.sales) + d.fees - d.refunded;
         }
         total += game.rollover() + game.unclaimedWinnings() + game.totalReferralBalances()
         + game.treasuryBalance() + game.buybackBalance();
