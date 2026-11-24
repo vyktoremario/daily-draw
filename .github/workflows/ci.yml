@@ -41,7 +41,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          submodules: recursive
+          submodules: true # our remappings use our own pinned OpenZeppelin copies
       - uses: foundry-rs/foundry-toolchain@v1
       - run: forge fmt --check
         working-directory: packages/contracts
