@@ -1,28 +1,51 @@
 # Daily Draw
 
-Working name for a licensed ₦100 daily number draw: naira product first, on-chain product later.
-Every draw can be checked by anyone (see `packages/shared/src/fairness.ts`).
+Working name for a daily number draw that anyone can verify. **Crypto first:** an on-chain game
+paid in USDC launches first (testnet demo for grant applications, then mainnet). A licensed naira
+product for Nigerian players follows later.
 
-## Documents
+## The game
 
-- Requirements v0.1: https://claude.ai/artifact/Eefbmz8z8vLZmH8SkGAjhL
-- Design v0.1: https://claude.ai/artifact/B7mXA4iX3gaJ5ydLLUYYo7
-- Player app mockups (canvas): https://claude.ai/artifact/LyzCSxALf65p8PSZADmdxi — source in `design/mockups/`
+- One pool and one draw a day at 9:00pm WAT. Tickets cost $1 in USDC (₦100 for the later naira
+  product), bought singly or in bundles of 2, 5 or 10. Players pick numbers from 00 to 99.
+- A 10% fee is added to each ticket (proposed).
+- When someone wins, the pool is split **65% to winners**, **15% to the company** (10% team,
+  5% to buy back and burn the project's token) and **20% to the winners' referrers**. A winner's
+  referral share goes to the company if they had no active referrer.
+- If nobody wins, the whole pool rolls over to the next draw.
+
+## Documents (source of truth)
+
+- [Requirements v0.2](https://docs.google.com/document/d/1ouSypXFgJxaIzD_uEvJussHTLsEnl1A_i55PVPDoC1Q/edit)
+- [Design v0.2](https://docs.google.com/document/d/1pFn8AYeB3D-pX897zMvx9iNSKvbVz0u6S4uBBhXrnUs/edit)
+- [Player app mockups (canvas)](https://claude.ai/artifact/LyzCSxALf65p8PSZADmdxi), source in
+  `design/mockups/` (naira version; the crypto app reuses the screens with a connected wallet)
+- [Tickets and milestones](https://github.com/vyktoremario/daily-draw/milestones)
+
+## Releases
+
+1. **R1, testnet demo:** `DailyDraw.sol` on a testnet with test USDC, connect-wallet web app,
+   referrals, verifiable draws.
+2. **R2, on-chain launch:** mainnet on the first chain (chosen for grant support) after the
+   contract audit and legal advice on blocked countries.
+3. **R3, naira launch:** API, ledger, bank-transfer wallets and automated withdrawals, after a
+   state gaming licence.
+4. **R4, wider reach:** USSD, WhatsApp and SMS; more chains, each with its own pools.
 
 ## Repository layout
 
 ```text
 apps/
-  api/        NestJS (Fastify) API — the only code that moves money
-  worker/     pg-boss jobs: draw open, cutoff, draw, settle, outbox
-  ussd/       Africa's Talking USSD handler (menus only)
-  web/        Next.js player PWA
+  api/        NestJS (Fastify) API for the naira product: the only code that moves naira (R3)
+  worker/     pg-boss jobs: draw open, cutoff, draw, settle, outbox (R3)
+  ussd/       Africa's Talking USSD handler, menus only (R4)
+  web/        Next.js player app (crypto in R1, naira in R3)
   admin/      Next.js admin console
-  indexer/    Ponder indexer (R4, not started)
+  indexer/    Ponder indexer for contract events (R2, not started)
 packages/
-  shared/     Money, game rules, settlement, fairness protocol — pure, tested
-  db/         Postgres migrations and typed Kysely client
-  contracts/  Foundry: DrawAnchor.sol (R1); DailyDraw.sol later (R4)
+  shared/     Money, game rules, settlement, fairness protocol: pure, tested
+  db/         Postgres migrations and typed Kysely client (naira ledger)
+  contracts/  Foundry: DrawAnchor.sol (naira draw anchors); DailyDraw.sol, the on-chain game (R1, next)
   ui/         Design tokens from the mockups
   api-client/ Generated API client (later)
   config/     TypeScript presets
@@ -31,7 +54,8 @@ docs/decisions/  Decision records
 
 ## Getting started
 
-Requirements: Node 22, pnpm 10, Docker. Foundry is optional (the contract scripts fall back to Docker).
+Requirements: Node 22, pnpm 10, Docker. Foundry is optional (the contract scripts fall back to
+Docker). Note: Laravel Herd also ships a `forge` command; `./scripts/forge.sh` picks the right one.
 
 ```bash
 pnpm install
@@ -55,14 +79,20 @@ pnpm --filter @daily-draw/admin dev    # http://localhost:3001
 
 ## Rules of the road
 
-- Money is integer kobo (`bigint`) everywhere. Never floats.
-- Only `apps/api` and `apps/worker` write to the database. Every money movement is a balanced
+- Money is integers everywhere: kobo (`bigint`) for naira, USDC base units on-chain. Never floats.
+- Only `apps/api` and `apps/worker` write to the naira database. Every money movement is a balanced
   ledger transaction with an idempotency key; the database rejects anything else.
-- Play money only outside production.
+- On-chain, no function loops over tickets, winners or referrers, and every money rule is covered
+  by an invariant test.
+- Play money and testnets only outside production.
 
 ## SDLC status
 
-1. Planning — done
-2. Requirements — v0.1 drafted, awaiting sign-off
-3. Design — technical design v0.1 and player mockups drafted
-4. Build — **monorepo scaffolded**; next: R1 prototype features
+1. Planning: done
+2. Requirements: v0.2 (crypto first, 65/15/20 split), a few rules still to confirm
+3. Design: v0.2 and player mockups
+4. Build: monorepo scaffolded, CI and naira ledger service done; next is `DailyDraw.sol` for the
+   R1 testnet demo
+
+The settlement code in `packages/shared` still uses the earlier single operator cut and is due to be
+updated to the 65/15/20 split with referrals (see the R1 tickets).
