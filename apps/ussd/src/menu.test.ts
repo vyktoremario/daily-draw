@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_RULES } from '@daily-draw/shared';
+import { NAIRA_RULES } from '@daily-draw/shared';
 import { handleUssd, MAX_SCREEN_CHARS, type UssdContext } from './menu.js';
 
 const ctx: UssdContext = {
-  rules: DEFAULT_RULES,
+  rules: NAIRA_RULES,
   poolLabel: '₦612,400',
   lastResult: 'Last number: 42. 31 winners, ₦27,419 each.',
 };
