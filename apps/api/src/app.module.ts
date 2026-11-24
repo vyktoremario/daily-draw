@@ -2,8 +2,9 @@ import { Module } from '@nestjs/common';
 import { DbModule } from './db/db.module.js';
 import { DrawsModule } from './draws/draws.module.js';
 import { HealthModule } from './health/health.module.js';
+import { LedgerModule } from './ledger/ledger.module.js';
 
 @Module({
-  imports: [DbModule, HealthModule, DrawsModule],
+  imports: [DbModule, LedgerModule, HealthModule, DrawsModule],
 })
 export class AppModule {}

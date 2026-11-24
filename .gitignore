@@ -12,3 +12,5 @@ coverage/
 packages/contracts/out/
 packages/contracts/cache/
 packages/contracts/broadcast/*/31337/
+# Next.js regenerates this on every dev/build run
+next-env.d.ts

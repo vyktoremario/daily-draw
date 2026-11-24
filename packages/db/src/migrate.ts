@@ -1,8 +1,5 @@
-import { promises as fs } from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { FileMigrationProvider, Migrator } from 'kysely/migration';
 import { createDb } from './client.js';
+import { migrateDown, migrateToLatest } from './migrator.js';
 
 const direction = process.argv[2] ?? 'latest';
 const url = process.env.DATABASE_URL;
@@ -12,19 +9,9 @@ if (!url) {
 }
 
 const db = createDb(url, 1);
-const migrator = new Migrator({
-  db,
-  provider: new FileMigrationProvider({
-    fs,
-    path,
-    migrationFolder: path.join(path.dirname(fileURLToPath(import.meta.url)), 'migrations'),
-  }),
-});
+const { error, results } = direction === 'down' ? await migrateDown(db) : await migrateToLatest(db);
 
-const { error, results } =
-  direction === 'down' ? await migrator.migrateDown() : await migrator.migrateToLatest();
-
-for (const r of results ?? []) {
+for (const r of results) {
   console.log(`${r.status === 'Success' ? 'ok  ' : 'FAIL'} ${r.direction} ${r.migrationName}`);
 }
 await db.destroy();
