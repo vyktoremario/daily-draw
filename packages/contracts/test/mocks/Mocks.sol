@@ -7,7 +7,7 @@ import {
     IRandomnessProvider
 } from "../../src/interfaces/IRandomnessProvider.sol";
 
-/// @notice Test USDC with 6 decimals and open minting.
+/// @notice Test USDC with 6 decimals, open minting, and Circle-style freezing of addresses.
 contract MockUSDC is ERC20 {
     constructor() ERC20("Test USDC", "USDC") {}
 
@@ -15,8 +15,22 @@ contract MockUSDC is ERC20 {
         return 6;
     }
 
+    mapping(address account => bool) public frozen;
+
+    error AccountFrozen(address account);
+
     function mint(address to, uint256 amount) external {
         _mint(to, amount);
+    }
+
+    function setFrozen(address account, bool isFrozen) external {
+        frozen[account] = isFrozen;
+    }
+
+    function _update(address from, address to, uint256 value) internal override {
+        if (frozen[from]) revert AccountFrozen(from);
+        if (frozen[to]) revert AccountFrozen(to);
+        super._update(from, to, value);
     }
 }
 
