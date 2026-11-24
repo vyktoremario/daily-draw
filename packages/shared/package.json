@@ -11,18 +11,21 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "test-vectors"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -p tsconfig.json --watch --preserveWatchOutput",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "vectors": "tsx scripts/generate-vectors.ts"
   },
   "dependencies": {
     "@noble/hashes": "^2.4.0"
   },
   "devDependencies": {
-    "@daily-draw/config": "workspace:*"
+    "@daily-draw/config": "workspace:*",
+    "tsx": "^4.23.15"
   }
 }

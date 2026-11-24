@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { Database, Draw } from '@daily-draw/db';
-import { DEFAULT_RULES, formatNaira } from '@daily-draw/shared';
+import { NAIRA_RULES, formatAmount } from '@daily-draw/shared';
 import type { Kysely } from 'kysely';
 import { DB } from '../db/db.module.js';
 
@@ -21,16 +21,21 @@ export interface CurrentDrawDto {
 export class DrawsService {
   constructor(@Inject(DB) private readonly db: Kysely<Database>) {}
 
+  /** The naira game's rules (this API serves the naira product, R3). */
   rules() {
+    const r = NAIRA_RULES;
     return {
-      ticketPriceKobo: DEFAULT_RULES.ticketPriceKobo.toString(),
-      ticketPriceLabel: formatNaira(DEFAULT_RULES.ticketPriceKobo),
-      numberRange: DEFAULT_RULES.numberRange,
-      operatorCutBps: DEFAULT_RULES.operatorCutBps,
-      maxTicketsPerPlayerPerDay: DEFAULT_RULES.maxTicketsPerPlayerPerDay,
-      cutoffTime: DEFAULT_RULES.cutoffTime,
-      drawTime: DEFAULT_RULES.drawTime,
-      timeZone: DEFAULT_RULES.timeZone,
+      currency: r.currency,
+      ticketPrice: r.ticketPrice.toString(),
+      ticketPriceLabel: formatAmount(r.ticketPrice, r),
+      ticketFeeBps: r.ticketFeeBps,
+      bundleSizes: r.bundleSizes,
+      numberRange: r.numberRange,
+      split: r.split,
+      maxTicketsPerPlayerPerDay: r.maxTicketsPerPlayerPerDay,
+      cutoffTime: r.cutoffTime,
+      drawTime: r.drawTime,
+      timeZone: r.timeZone,
     };
   }
 

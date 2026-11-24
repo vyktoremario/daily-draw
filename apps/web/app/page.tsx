@@ -1,9 +1,11 @@
-import { DEFAULT_RULES, formatNaira } from '@daily-draw/shared';
+import { ONCHAIN_RULES, formatAmount, ticketCost } from '@daily-draw/shared';
 import { colors, fonts, minTouch, radii } from '@daily-draw/ui';
 
-// Scaffold home screen. The real screens follow design/mockups (Home, Pick, Confirm, Results, Verify, Wallet).
+// Scaffold home screen for the on-chain game (R1). The real screens follow design/mockups (#12).
 export default function Home() {
-  const price = formatNaira(DEFAULT_RULES.ticketPriceKobo);
+  const rules = ONCHAIN_RULES;
+  const price = formatAmount(rules.ticketPrice, rules);
+  const withFee = formatAmount(ticketCost(rules, 1).total, rules);
   return (
     <main
       style={{
@@ -34,8 +36,8 @@ export default function Home() {
           {price} a ticket
         </span>
         <span style={{ color: colors.nightText, fontSize: 14 }}>
-          Pick {DEFAULT_RULES.numberRange === 100 ? '00–99' : '000–999'} · Sales close{' '}
-          {DEFAULT_RULES.cutoffTime} · Draw {DEFAULT_RULES.drawTime}
+          Pick {rules.numberRange === 100 ? '00–99' : '000–999'} · Sales close {rules.cutoffTime}{' '}
+          WAT · Draw {rules.drawTime} WAT · Winners share 65% of the pool
         </span>
         <a
           href="#play"
@@ -51,11 +53,11 @@ export default function Home() {
             textDecoration: 'none',
           }}
         >
-          Play for {price}
+          Play for {withFee}
         </a>
       </section>
       <p style={{ color: colors.inkMuted, fontSize: 13, textAlign: 'center', margin: 0 }}>
-        Prototype — play money only. Play for fun, not for income.
+        Testnet prototype: test USDC only. Play for fun, not for income.
       </p>
     </main>
   );

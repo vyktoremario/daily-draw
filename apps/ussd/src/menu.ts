@@ -1,4 +1,4 @@
-import { DEFAULT_RULES, formatNaira, parseDrawNumber, type GameRules } from '@daily-draw/shared';
+import { NAIRA_RULES, formatNaira, parseDrawNumber, type GameRules } from '@daily-draw/shared';
 
 /**
  * USSD menu as a pure function (design: "User experience flows").
@@ -34,7 +34,7 @@ function ticketCount(input: string, rules: GameRules): number | null {
 }
 
 function confirmScreen(label: string, count: number, rules: GameRules): UssdReply {
-  const total = formatNaira(rules.ticketPriceKobo * BigInt(count));
+  const total = formatNaira(rules.ticketPrice * BigInt(count));
   return con(
     `Confirm: ${count} ticket${count === 1 ? '' : 's'} on ${label} for ${total}\n1 Confirm\n2 Cancel`,
   );
@@ -45,7 +45,7 @@ export function handleUssd(text: string, ctx: UssdContext): UssdReply {
   const path = text === '' ? [] : text.split('*');
   const [first, second, third, fourth, fifth] = path;
   const digits = rules.numberRange === 100 ? '00-99' : '000-999';
-  const price = formatNaira(rules.ticketPriceKobo);
+  const price = formatNaira(rules.ticketPrice);
 
   if (path.length === 0) {
     return con(
@@ -116,7 +116,7 @@ export function handleUssd(text: string, ctx: UssdContext): UssdReply {
 }
 
 export const defaultContext: UssdContext = {
-  rules: DEFAULT_RULES,
+  rules: NAIRA_RULES,
   poolLabel: '₦0',
   lastResult: 'No results yet. First draw coming soon.',
 };

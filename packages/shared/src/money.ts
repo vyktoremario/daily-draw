@@ -32,3 +32,24 @@ export function applyBps(amount: Kobo, bps: number): Kobo {
   }
   return (amount * BigInt(bps)) / 10_000n;
 }
+
+/** USDC has 6 decimals: 1 USDC = 1_000_000 units. */
+export const USDC_UNITS = 1_000_000n;
+
+/** Convert whole dollars of USDC to base units. */
+export function usdc(amount: number | bigint): bigint {
+  if (typeof amount === 'number' && !Number.isInteger(amount)) {
+    throw new Error(`usdc() expects whole dollars, got ${amount}`);
+  }
+  return BigInt(amount) * USDC_UNITS;
+}
+
+/** Format USDC base units as dollars: 1_100_000n -> "$1.10", 1_234_567n -> "$1.234567". */
+export function formatUsdc(units: bigint): string {
+  const negative = units < 0n;
+  const abs = negative ? -units : units;
+  const whole = (abs / USDC_UNITS).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  let frac = (abs % USDC_UNITS).toString().padStart(6, '0').replace(/0+$/, '');
+  if (frac.length < 2) frac = frac.padEnd(2, '0');
+  return `${negative ? '−' : ''}$${whole}.${frac}`;
+}

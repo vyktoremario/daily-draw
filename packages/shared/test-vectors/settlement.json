@@ -1,0 +1,181 @@
+{
+  "split": {
+    "winnersBps": 6500,
+    "teamBps": 1000,
+    "buybackBps": 500,
+    "referrersBps": 2000
+  },
+  "cases": [
+    {
+      "name": "worked example: $1,000 pool, 10 winners, 7 referred",
+      "input": {
+        "sales": "1000000000",
+        "rolloverIn": "0",
+        "winningTickets": 10,
+        "winningTicketsWithActiveReferrer": 7
+      },
+      "expected": {
+        "pool": "1000000000",
+        "prizePerTicket": "65000000",
+        "referralSharePerTicket": "20000000",
+        "prizesTotal": "650000000",
+        "referralsPaid": "140000000",
+        "team": "160000000",
+        "buyback": "50000000",
+        "rolloverOut": "0"
+      }
+    },
+    {
+      "name": "no winner rolls everything over",
+      "input": {
+        "sales": "1000000000",
+        "rolloverIn": "250000000",
+        "winningTickets": 0,
+        "winningTicketsWithActiveReferrer": 0
+      },
+      "expected": {
+        "pool": "1250000000",
+        "prizePerTicket": "0",
+        "referralSharePerTicket": "0",
+        "prizesTotal": "0",
+        "referralsPaid": "0",
+        "team": "0",
+        "buyback": "0",
+        "rolloverOut": "1250000000"
+      }
+    },
+    {
+      "name": "single winner, referred",
+      "input": {
+        "sales": "37000000",
+        "rolloverIn": "0",
+        "winningTickets": 1,
+        "winningTicketsWithActiveReferrer": 1
+      },
+      "expected": {
+        "pool": "37000000",
+        "prizePerTicket": "24050000",
+        "referralSharePerTicket": "7400000",
+        "prizesTotal": "24050000",
+        "referralsPaid": "7400000",
+        "team": "3700000",
+        "buyback": "1850000",
+        "rolloverOut": "0"
+      }
+    },
+    {
+      "name": "single winner, no referrer",
+      "input": {
+        "sales": "37000000",
+        "rolloverIn": "0",
+        "winningTickets": 1,
+        "winningTicketsWithActiveReferrer": 0
+      },
+      "expected": {
+        "pool": "37000000",
+        "prizePerTicket": "24050000",
+        "referralSharePerTicket": "7400000",
+        "prizesTotal": "24050000",
+        "referralsPaid": "0",
+        "team": "11100000",
+        "buyback": "1850000",
+        "rolloverOut": "0"
+      }
+    },
+    {
+      "name": "rollover brought in, nobody referred",
+      "input": {
+        "sales": "1000000000",
+        "rolloverIn": "1000000000",
+        "winningTickets": 4,
+        "winningTicketsWithActiveReferrer": 0
+      },
+      "expected": {
+        "pool": "2000000000",
+        "prizePerTicket": "325000000",
+        "referralSharePerTicket": "100000000",
+        "prizesTotal": "1300000000",
+        "referralsPaid": "0",
+        "team": "600000000",
+        "buyback": "100000000",
+        "rolloverOut": "0"
+      }
+    },
+    {
+      "name": "awkward amounts leave rounding dust",
+      "input": {
+        "sales": "1000003",
+        "rolloverIn": "7",
+        "winningTickets": 7,
+        "winningTicketsWithActiveReferrer": 3
+      },
+      "expected": {
+        "pool": "1000010",
+        "prizePerTicket": "92858",
+        "referralSharePerTicket": "28571",
+        "prizesTotal": "650006",
+        "referralsPaid": "85713",
+        "team": "214285",
+        "buyback": "50000",
+        "rolloverOut": "6"
+      }
+    },
+    {
+      "name": "every ticket on the winning number",
+      "input": {
+        "sales": "20000000",
+        "rolloverIn": "0",
+        "winningTickets": 20,
+        "winningTicketsWithActiveReferrer": 13
+      },
+      "expected": {
+        "pool": "20000000",
+        "prizePerTicket": "650000",
+        "referralSharePerTicket": "200000",
+        "prizesTotal": "13000000",
+        "referralsPaid": "2600000",
+        "team": "3400000",
+        "buyback": "1000000",
+        "rolloverOut": "0"
+      }
+    },
+    {
+      "name": "tiny pool smaller than the winners",
+      "input": {
+        "sales": "9",
+        "rolloverIn": "0",
+        "winningTickets": 10,
+        "winningTicketsWithActiveReferrer": 5
+      },
+      "expected": {
+        "pool": "9",
+        "prizePerTicket": "0",
+        "referralSharePerTicket": "0",
+        "prizesTotal": "0",
+        "referralsPaid": "0",
+        "team": "0",
+        "buyback": "0",
+        "rolloverOut": "9"
+      }
+    },
+    {
+      "name": "large pool after rollovers",
+      "input": {
+        "sales": "48211000000",
+        "rolloverIn": "912345678901",
+        "winningTickets": 133,
+        "winningTicketsWithActiveReferrer": 98
+      },
+      "expected": {
+        "pool": "960556678901",
+        "prizePerTicket": "4694449934",
+        "referralSharePerTicket": "1444446133",
+        "prizesTotal": "624361841222",
+        "referralsPaid": "141555721034",
+        "team": "146611282545",
+        "buyback": "48027833945",
+        "rolloverOut": "155"
+      }
+    }
+  ]
+}

@@ -1,68 +1,98 @@
 import { describe, expect, it } from 'vitest';
-import { naira } from './money.js';
+import { usdc } from './money.js';
+import { DEFAULT_SPLIT } from './rules.js';
 import { settleDraw, type SettlementInput } from './settlement.js';
 
 const base: SettlementInput = {
-  salesKobo: naira(800_000),
-  rolloverInKobo: 0n,
-  operatorCutBps: 2500,
-  taxKobo: 0n,
-  winningTickets: 80,
+  sales: usdc(1_000),
+  rolloverIn: 0n,
+  split: DEFAULT_SPLIT,
+  winningTickets: 10,
+  winningTicketsWithActiveReferrer: 10,
 };
 
-function conserved(input: SettlementInput) {
-  const s = settleDraw(input);
-  const out =
-    s.operatorCutKobo +
-    s.taxKobo +
-    s.prizePerTicketKobo * BigInt(input.winningTickets) +
-    s.rolloverOutKobo;
-  return out === input.salesKobo + input.rolloverInKobo;
+function total(s: ReturnType<typeof settleDraw>): bigint {
+  return s.prizesTotal + s.referralsPaid + s.team + s.buyback + s.rolloverOut;
 }
 
-describe('settleDraw', () => {
-  it('matches the worked example in the requirements', () => {
-    const s = settleDraw(base);
-    expect(s.operatorCutKobo).toBe(naira(200_000));
-    expect(s.poolKobo).toBe(naira(600_000));
-    expect(s.prizePerTicketKobo).toBe(naira(7_500));
-    expect(s.rolloverOutKobo).toBe(0n);
+describe('settleDraw (65/15/20)', () => {
+  it('matches the worked example in Requirements v0.2', () => {
+    // $1,000 pool, 10 winning tickets, 3 of them without a referrer.
+    const s = settleDraw({ ...base, winningTicketsWithActiveReferrer: 7 });
+    expect(s.prizePerTicket).toBe(usdc(65));
+    expect(s.prizesTotal).toBe(usdc(650));
+    expect(s.referralSharePerTicket).toBe(usdc(20));
+    expect(s.referralsPaid).toBe(usdc(140));
+    expect(s.team).toBe(usdc(100) + usdc(60));
+    expect(s.buyback).toBe(usdc(50));
+    expect(s.rolloverOut).toBe(0n);
   });
 
-  it('rolls the whole pool over when nobody wins', () => {
-    const s = settleDraw({ ...base, winningTickets: 0 });
-    expect(s.prizePerTicketKobo).toBe(0n);
-    expect(s.rolloverOutKobo).toBe(naira(600_000));
+  it('rolls the whole pool over when nobody wins, taking nothing', () => {
+    const s = settleDraw({
+      ...base,
+      rolloverIn: usdc(250),
+      winningTickets: 0,
+      winningTicketsWithActiveReferrer: 0,
+    });
+    expect(s.won).toBe(false);
+    expect(s.rolloverOut).toBe(usdc(1_250));
+    expect(s.team + s.buyback + s.prizesTotal + s.referralsPaid).toBe(0n);
   });
 
-  it('takes no cut from rollover and sends leftover kobo to rollover', () => {
-    const s = settleDraw({ ...base, rolloverInKobo: naira(1_000), winningTickets: 7 });
-    expect(s.operatorCutKobo).toBe(naira(200_000));
-    expect(s.poolKobo).toBe(naira(601_000));
-    expect(s.prizePerTicketKobo * 7n + s.rolloverOutKobo).toBe(s.poolKobo);
-    expect(s.rolloverOutKobo).toBeLessThan(7n);
+  it('includes rollover in the pool and gives every referral share to the team when nobody was referred', () => {
+    const s = settleDraw({
+      ...base,
+      rolloverIn: usdc(1_000),
+      winningTickets: 4,
+      winningTicketsWithActiveReferrer: 0,
+    });
+    expect(s.pool).toBe(usdc(2_000));
+    expect(s.prizePerTicket).toBe(usdc(325));
+    expect(s.referralsPaid).toBe(0n);
+    expect(s.team).toBe(usdc(200) + usdc(400));
+    expect(total(s)).toBe(s.pool);
   });
 
-  it('accounts for every kobo across many random draws', () => {
-    let seed = 42;
+  it('sends rounding leftovers to rollover', () => {
+    const s = settleDraw({
+      ...base,
+      sales: 1_000_003n,
+      winningTickets: 7,
+      winningTicketsWithActiveReferrer: 3,
+    });
+    expect(total(s)).toBe(s.pool);
+    expect(s.rolloverOut).toBeGreaterThan(0n);
+    expect(s.rolloverOut).toBeLessThan(20n);
+  });
+
+  it('accounts for every unit across many random draws', () => {
+    let seed = 7;
     const rand = (max: number) => {
       seed = (seed * 1_103_515_245 + 12_345) % 2 ** 31;
       return seed % max;
     };
-    for (let i = 0; i < 2_000; i++) {
-      const input: SettlementInput = {
-        salesKobo: BigInt(rand(10_000_000)) * 100n + BigInt(rand(100)),
-        rolloverInKobo: BigInt(rand(5_000_000)),
-        operatorCutBps: rand(10_001),
-        taxKobo: 0n,
-        winningTickets: rand(200),
-      };
-      expect(conserved(input)).toBe(true);
+    for (let i = 0; i < 5_000; i++) {
+      const winningTickets = rand(300);
+      const s = settleDraw({
+        sales: BigInt(rand(2_000_000_000)) * 7n + BigInt(rand(1_000)),
+        rolloverIn: BigInt(rand(1_000_000_000)),
+        split: DEFAULT_SPLIT,
+        winningTickets,
+        winningTicketsWithActiveReferrer: winningTickets === 0 ? 0 : rand(winningTickets + 1),
+      });
+      expect(total(s)).toBe(s.pool);
+      for (const v of [s.prizePerTicket, s.referralsPaid, s.team, s.buyback, s.rolloverOut]) {
+        expect(v).toBeGreaterThanOrEqual(0n);
+      }
+      if (winningTickets > 0) expect(s.rolloverOut).toBeLessThan(BigInt(winningTickets) * 2n + 4n);
     }
   });
 
   it('rejects bad input', () => {
     expect(() => settleDraw({ ...base, winningTickets: -1 })).toThrow();
-    expect(() => settleDraw({ ...base, taxKobo: naira(10_000_000) })).toThrow();
+    expect(() => settleDraw({ ...base, winningTicketsWithActiveReferrer: 11 })).toThrow();
+    expect(() => settleDraw({ ...base, sales: -1n })).toThrow();
+    expect(() => settleDraw({ ...base, split: { ...DEFAULT_SPLIT, teamBps: 1001 } })).toThrow();
   });
 });
