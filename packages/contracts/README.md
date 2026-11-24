@@ -35,7 +35,8 @@ which picks a local Foundry install or falls back to Docker).
     voiding) and `PAUSER_ROLE`. A 48-hour `TimelockController` (Safe = proposer, canceller and
     executor) holds `PARAMS_ROLE` (`setParams`, `setRandomnessProvider`) and `UPGRADER_ROLE`.
     `UPGRADER_ROLE` administers both timelocked roles, so the Safe can't grant them to itself.
-  - Next: invariant suite (#28).
+  - Done (#28): invariant and fuzz suite (see Tests below); 100% line, statement, branch and
+    function coverage on `DailyDraw.sol`.
 - `interfaces/IRandomnessProvider.sol`: randomness behind an adapter, so Chainlink VRF or another
   verifiable random function can be plugged in per chain (#24 decides the first chain).
 - `script/DeployDailyDraw.s.sol`: deploys the implementation, the ERC-1967 proxy and the
@@ -55,6 +56,58 @@ which picks a local Foundry install or falls back to Docker).
 - `test/SettlementVectors.t.sol`: runs every case in `packages/shared/test-vectors/settlement.json`
   through settlement and claims (via `test/harness/DailyDrawHarness.sol`, which seeds draw state),
   so the contract matches the TypeScript reference exactly.
+
+- `test/EdgeCases.t.sol`: input checks not covered elsewhere (zero addresses, past first cutoff,
+  closing a draw that isn't open), for full coverage.
+
+### Invariant suite (`test/invariant/`)
+
+`DailyDrawHandler.sol` plays random sequences of bounded actions by five players, a referrer who
+never plays, the keeper and the multisig: buying (bundles of 1/2/5/10, numbers in range and out,
+referrers that are another player, the outsider, the player themselves or none, and buys at or
+after the cutoff), closing, fulfilling through the mock provider (pending, duplicate and late
+fulfilments), fulfilling as a stranger, `claim`, keeper `claimFor`, `claimReferral`,
+`withdrawTreasury` / `withdrawBuyback`, `voidDraw` (admin, or anyone after 24 hours), `refund`,
+`sweepUnclaimed`, `pause` / `unpause`, `setParams` (valid variations and invalid sets), time jumps,
+and stray USDC sent straight to the contract. Every game call is wrapped in try/catch; after each
+accepted action the handler checks exact amounts and recipients and records any breach. Ghost
+variables keep an independent record of every token in and out, every ticket, every payment per
+ticket and every referrer change.
+
+`DailyDraw.invariants.t.sol` checks, after every call:
+
+1. The USDC balance covers everything owed (`owed()`), and equals it plus stray tokens.
+2. Per settled draw: pool = sales + rollover in; prizes + referral shares + company share
+   never exceed the pool, and the leftover is exactly what rolled over.
+3. No ticket accepted at or after a draw's cutoff (or beyond the wallet limit), and no ticket
+   added once a draw has closed.
+4. A draw's winning number is set at most once, only by the provider's callback, and never
+   changes; duplicate and late fulfilments change nothing.
+5. Every ticket is paid at most once (prize or refund, never both) and its referral share
+   credited at most once.
+6. A player's referrer is set at most once, on their first play, and never to themselves.
+7. Nobody moves money outside the rules: USDC in = USDC out (per category) + balance; treasury
+   and buy-back receive exactly what was withdrawn; every token sits with a known party; the
+   referral and unclaimed-winnings totals match their parts.
+
+At the end of each run `afterInvariant` settles every pending draw, claims every prize, refunds
+every voided ticket and withdraws every balance, then checks that only the rollover, open draws'
+money and stray tokens remain.
+
+Settings in `foundry.toml`: 256 runs of depth 100 (25,600 calls), `fail_on_revert = false`. About
+40 seconds in the Docker fallback on a Mac. Run just the suite, or a deeper search:
+
+```bash
+./scripts/forge.sh test --match-path 'test/invariant/*'
+FOUNDRY_INVARIANT_RUNS=2000 ./scripts/forge.sh test --match-path 'test/invariant/*'
+```
+
+Coverage (unit tests alone reach 100% on `DailyDraw.sol`; leaving the invariant suite out keeps
+it quick):
+
+```bash
+./scripts/forge.sh coverage --report summary --no-match-contract DailyDrawInvariants
+```
 
 ## Libraries
 
