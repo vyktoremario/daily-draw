@@ -8,6 +8,9 @@ import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/U
 import {
     AccessControlUpgradeable
 } from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {
+    PausableUpgradeable
+} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 // OpenZeppelin 5.x keeps the guard in namespaced storage, so it is proxy-safe without an initializer.
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Checkpoints} from "@openzeppelin/contracts/utils/structs/Checkpoints.sol";
@@ -18,9 +21,15 @@ import {IRandomnessConsumer, IRandomnessProvider} from "./interfaces/IRandomness
 ///         cutoff, and a verifiable random number picks the winning number.
 ///         Requirements v0.2 (C-01 to C-16) and Design v0.2 ("Smart contract specification").
 /// @dev Scope so far: draws, bundles, fees, cutoff, referrer registration and randomness (#25);
-///      settlement with the 65/15/20 split, referral credits and claims (#26). Void/refund/sweep/pause
-///      and timelocked upgrades (#27) build on it. No function loops over winners or referrers; the
-///      only loops are over the caller's own numbers.
+///      settlement with the 65/15/20 split, referral credits and claims (#26); voiding with refunds,
+///      sweeping unclaimed prizes, pausing and timelocked settings and upgrades (#27). No function
+///      loops over winners or referrers; the only loops are over the caller's own numbers.
+///
+///      Roles. `DEFAULT_ADMIN_ROLE` and `PAUSER_ROLE` belong to the 2-of-3 Safe multisig;
+///      `PARAMS_ROLE` and `UPGRADER_ROLE` belong to a 48-hour `TimelockController` that the
+///      multisig proposes to (see script/DeployDailyDraw.s.sol). Both timelocked roles are
+///      administered by `UPGRADER_ROLE`, so the multisig can't grant them to itself and skip the
+///      delay.
 ///
 ///      Money flow. Each draw holds its sales and fees until it settles. Settlement takes the pool
 ///      (sales + the contract-level `rollover`), credits the team and buy-back shares and the draw's
@@ -34,6 +43,7 @@ contract DailyDraw is
     Initializable,
     UUPSUpgradeable,
     AccessControlUpgradeable,
+    PausableUpgradeable,
     ReentrancyGuard,
     IRandomnessConsumer
 {
@@ -48,7 +58,9 @@ contract DailyDraw is
         Open,
         Closed,
         Drawn,
-        Settled
+        Settled,
+        Voided, // no random number arrived; tickets are refunded (#27)
+        Swept // settled, and its unclaimed prizes moved into the rollover after the claim window
     }
 
     /// @notice Settings copied into each draw when it opens, so later changes only affect new draws.
@@ -63,6 +75,8 @@ contract DailyDraw is
         uint32 maxTicketsPerWallet; // per draw (one draw a day)
         uint32 drawInterval; // seconds between cutoffs: 1 day
         uint16 referrerActiveDays; // a referrer earns only if they played this many days before cutoff
+        // Appended in #27: still fits the struct's second slot, so `Draw` and storage don't shift.
+        uint16 unclaimedPrizeDays; // after settlement, unclaimed prizes may be swept to the rollover
     }
 
     struct Draw {
@@ -81,6 +95,9 @@ contract DailyDraw is
         uint128 referralSharePerTicket; // referral share attached to each winning ticket
         uint64 settledAt;
         uint32 claimedTickets; // winning tickets claimed so far
+        // Appended in #27:
+        uint64 closedAt; // when sales closed and randomness was requested
+        uint128 refunded; // price + fee returned to players of a voided draw so far
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -93,9 +110,13 @@ contract DailyDraw is
     bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
     /// @notice May claim on a winner's behalf 24 hours after settlement; the money still goes to them.
     bytes32 public constant KEEPER_ROLE = keccak256("KEEPER_ROLE");
+    /// @notice Pauses and unpauses buying and closing. Granted to the multisig (#27).
+    bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
 
     /// @notice How long winners have to claim themselves before a keeper may claim for them.
     uint256 public constant KEEPER_CLAIM_DELAY = 24 hours;
+    /// @notice How long a closed draw may wait for its random number before anyone may void it.
+    uint256 public constant VOID_DELAY = 24 hours;
 
     uint256 private constant BPS = 10_000;
 
@@ -135,6 +156,12 @@ contract DailyDraw is
     uint256 public treasuryBalance;
     /// @notice Credited to the buy-back reserve, waiting for `withdrawBuyback`.
     uint256 public buybackBalance;
+
+    // Added in #27 (appended).
+
+    /// @notice Numbers whose tickets `player` has been refunded in a voided draw.
+    mapping(uint256 drawId => mapping(address player => mapping(uint256 number => bool))) public
+        refunded;
 
     // ---------------------------------------------------------------------------------------------
     // Events and errors
@@ -183,6 +210,12 @@ contract DailyDraw is
     event BuybackWithdrawn(address indexed to, uint256 amount);
     event TreasuryChanged(address treasury);
     event BuybackReserveChanged(address buybackReserve);
+    event DrawVoided(uint256 indexed drawId, address indexed caller, string reason);
+    event Refunded(uint256 indexed drawId, address indexed player, uint256 tickets, uint256 amount);
+    /// @notice A random number arrived for a draw that was already voided; it was ignored.
+    event LateRandomnessIgnored(uint256 indexed drawId, uint256 requestId);
+    /// @notice Unclaimed prizes and their referral shares moved into the rollover.
+    event UnclaimedSwept(uint256 indexed drawId, uint256 tickets, uint256 amount);
 
     error InvalidParams();
     error InvalidBundle(uint256 count);
@@ -197,6 +230,12 @@ contract DailyDraw is
     error NothingToClaim();
     error AlreadyClaimed(uint256 drawId, address player);
     error KeeperClaimTooEarly(uint256 drawId, uint256 allowedFrom);
+    error DrawNotClosed(uint256 drawId);
+    error VoidTooEarly(uint256 drawId, uint256 allowedFrom);
+    error DrawNotVoided(uint256 drawId);
+    error NothingToRefund();
+    error SweepTooEarly(uint256 drawId, uint256 allowedFrom);
+    error NothingToSweep(uint256 drawId);
 
     // ---------------------------------------------------------------------------------------------
     // Setup
@@ -207,12 +246,14 @@ contract DailyDraw is
         _disableInitializers();
     }
 
-    /// @param admin_ The 2-of-3 Safe multisig.
+    /// @param admin_ The 2-of-3 Safe multisig: `DEFAULT_ADMIN_ROLE` and `PAUSER_ROLE`.
+    /// @param timelock_ The 48-hour `TimelockController`: `PARAMS_ROLE` and `UPGRADER_ROLE`.
     /// @param treasury_ Team treasury (10% of won pools, fees, unearned referral shares).
     /// @param buybackReserve_ Buy-back reserve (5% of won pools).
     /// @param firstCutoff Timestamp at which sales for the first draw close (8:45pm WAT = 19:45 UTC).
     function initialize(
         address admin_,
+        address timelock_,
         IERC20 usdc_,
         IRandomnessProvider randomness_,
         address treasury_,
@@ -221,18 +262,24 @@ contract DailyDraw is
         uint64 firstCutoff
     ) external initializer {
         __AccessControl_init();
+        __Pausable_init();
         _validate(params_);
         if (
             address(usdc_) == address(0) || address(randomness_) == address(0)
-                || admin_ == address(0) || treasury_ == address(0) || buybackReserve_ == address(0)
+                || admin_ == address(0) || timelock_ == address(0) || treasury_ == address(0)
+                || buybackReserve_ == address(0)
         ) {
             revert InvalidParams();
         }
         if (firstCutoff <= block.timestamp) revert InvalidParams();
 
         _grantRole(DEFAULT_ADMIN_ROLE, admin_);
-        _grantRole(PARAMS_ROLE, admin_);
-        _grantRole(UPGRADER_ROLE, admin_);
+        _grantRole(PAUSER_ROLE, admin_);
+        _grantRole(PARAMS_ROLE, timelock_);
+        _grantRole(UPGRADER_ROLE, timelock_);
+        // Only a holder of UPGRADER_ROLE (the timelock) can hand out the timelocked roles.
+        _setRoleAdmin(PARAMS_ROLE, UPGRADER_ROLE);
+        _setRoleAdmin(UPGRADER_ROLE, UPGRADER_ROLE);
         usdc = usdc_;
         randomness = randomness_;
         treasury = treasury_;
@@ -252,6 +299,7 @@ contract DailyDraw is
     function buyTickets(uint256 drawId, uint16[] calldata numbers, address referrer)
         external
         nonReentrant
+        whenNotPaused
     {
         Draw storage d = _draws[drawId];
         if (d.status != Status.Open) revert DrawNotOpen(drawId);
@@ -296,12 +344,13 @@ contract DailyDraw is
 
     /// @notice Close sales once the cutoff has passed and ask for a random number. Anyone can call
     ///         it, so a stuck keeper can't stall the game. Opens the next draw straight away.
-    function closeDraw(uint256 drawId) external nonReentrant {
+    function closeDraw(uint256 drawId) external nonReentrant whenNotPaused {
         Draw storage d = _draws[drawId];
         if (d.status != Status.Open) revert DrawNotOpen(drawId);
         if (block.timestamp < d.cutoff) revert CutoffNotReached(drawId, d.cutoff);
 
         d.status = Status.Closed;
+        d.closedAt = uint64(block.timestamp);
         _openDraw(drawId + 1, _nextCutoff(d.cutoff, d.params.drawInterval));
 
         uint256 requestId = randomness.requestRandomness();
@@ -312,11 +361,16 @@ contract DailyDraw is
 
     /// @inheritdoc IRandomnessConsumer
     /// @dev Only the randomness provider, which has already verified the proof. Settles the draw in
-    ///      the same call: constant work, no loops and no token transfers.
+    ///      the same call: constant work, no loops and no token transfers. A number that arrives
+    ///      after its draw was voided is ignored (not reverted), so a provider never sees a failure.
     function fulfillRandomness(uint256 requestId, uint256 value) external {
         if (msg.sender != address(randomness)) revert NotRandomnessProvider();
         uint256 drawId = drawForRequest[requestId];
         Draw storage d = _draws[drawId];
+        if (drawId != 0 && d.status == Status.Voided && d.requestId == requestId) {
+            emit LateRandomnessIgnored(drawId, requestId);
+            return;
+        }
         if (drawId == 0 || d.status != Status.Closed || d.requestId != requestId) {
             revert UnknownRequest(requestId);
         }
@@ -394,8 +448,80 @@ contract DailyDraw is
     }
 
     // ---------------------------------------------------------------------------------------------
+    // Void, refund, sweep (#27)
+    // ---------------------------------------------------------------------------------------------
+
+    /// @notice Void a closed draw whose random number hasn't arrived, so its players can be
+    ///         refunded. The admin may do it at any time while the draw waits; anyone may once it has
+    ///         waited `VOID_DELAY` (24 hours). The draw's sales and fees never reach the pool or the
+    ///         treasury; the rollover is untouched and goes to the next draw that settles.
+    function voidDraw(uint256 drawId, string calldata reason) external {
+        Draw storage d = _draws[drawId];
+        if (d.status != Status.Closed) revert DrawNotClosed(drawId);
+        if (!hasRole(DEFAULT_ADMIN_ROLE, msg.sender)) {
+            uint256 allowedFrom = uint256(d.closedAt) + VOID_DELAY;
+            if (block.timestamp < allowedFrom) revert VoidTooEarly(drawId, allowedFrom);
+        }
+        d.status = Status.Voided;
+        emit DrawVoided(drawId, msg.sender, reason);
+    }
+
+    /// @notice Refund the caller's tickets on `numbers` in a voided draw: price plus fee for each.
+    ///         Each number is refunded once; numbers already refunded or never played are skipped,
+    ///         so a wallet can pass everything it played. Works while paused.
+    function refund(uint256 drawId, uint16[] calldata numbers) external nonReentrant {
+        Draw storage d = _draws[drawId];
+        if (d.status != Status.Voided) revert DrawNotVoided(drawId);
+        uint256 tickets;
+        for (uint256 i; i < numbers.length; ++i) {
+            uint256 n = numbers[i];
+            if (refunded[drawId][msg.sender][n]) continue;
+            uint256 t = ticketsOf[drawId][msg.sender][n];
+            if (t == 0) continue;
+            refunded[drawId][msg.sender][n] = true;
+            tickets += t;
+        }
+        if (tickets == 0) revert NothingToRefund();
+        // Exact: `_validate` makes the fee on a bundle equal the per-ticket fee times its size.
+        uint256 price = uint256(d.params.ticketPrice) * tickets;
+        uint256 amount = price + price * d.params.feeBps / BPS;
+        d.refunded += uint128(amount);
+        emit Refunded(drawId, msg.sender, tickets, amount);
+        usdc.safeTransfer(msg.sender, amount);
+    }
+
+    /// @notice Once a settled draw's claim window (`unclaimedPrizeDays` after settlement) has
+    ///         passed, move its unclaimed prizes and their referral shares into the rollover, so they
+    ///         join the next pool that settles. Anyone may call it. Claims for the draw revert after.
+    function sweepUnclaimed(uint256 drawId) external {
+        Draw storage d = _draws[drawId];
+        if (d.status != Status.Settled) revert DrawNotSettled(drawId);
+        uint256 allowedFrom = uint256(d.settledAt) + uint256(d.params.unclaimedPrizeDays) * 1 days;
+        if (block.timestamp < allowedFrom) revert SweepTooEarly(drawId, allowedFrom);
+        uint256 tickets = uint256(d.winningTickets) - d.claimedTickets;
+        if (tickets == 0) revert NothingToSweep(drawId);
+
+        uint256 amount = tickets * (uint256(d.prizePerTicket) + d.referralSharePerTicket);
+        d.status = Status.Swept;
+        unclaimedWinnings -= amount;
+        rollover += amount;
+        emit UnclaimedSwept(drawId, tickets, amount);
+        emit RolledOver(drawId, amount);
+    }
+
+    // ---------------------------------------------------------------------------------------------
     // Admin
     // ---------------------------------------------------------------------------------------------
+
+    /// @notice Stop buying and closing. Claims, referral claims, refunds, voiding, sweeping and
+    ///         treasury/buy-back withdrawals keep working, and so does a pending randomness callback.
+    function pause() external onlyRole(PAUSER_ROLE) {
+        _pause();
+    }
+
+    function unpause() external onlyRole(PAUSER_ROLE) {
+        _unpause();
+    }
 
     /// @notice New params apply from the next draw that opens; open draws keep their own copy.
     function setParams(Params calldata params_) external onlyRole(PARAMS_ROLE) {
@@ -416,10 +542,9 @@ contract DailyDraw is
         emit BuybackReserveChanged(buybackReserve_);
     }
 
-    function setRandomnessProvider(IRandomnessProvider provider)
-        external
-        onlyRole(DEFAULT_ADMIN_ROLE)
-    {
+    /// @notice Timelocked like params: whoever picks the provider could pick the winning number.
+    ///         Draws waiting on a broken provider are voided and refunded in the meantime.
+    function setRandomnessProvider(IRandomnessProvider provider) external onlyRole(PARAMS_ROLE) {
         if (address(provider) == address(0)) revert InvalidParams();
         randomness = provider;
         emit RandomnessProviderChanged(address(provider));
@@ -583,7 +708,13 @@ contract DailyDraw is
                 || uint256(p.winnersBps) + p.teamBps + p.buybackBps + p.referrersBps != BPS
                 || p.maxTicketsPerWallet < 10 || p.drawInterval < 1 hours
                 || p.referrerActiveDays == 0 || p.referrerActiveDays > 365
-        ) revert InvalidParams();
+                || p.unclaimedPrizeDays == 0 || p.unclaimedPrizeDays > 365
+                // Whole fee per ticket, so a bundle's fee is exactly the sum of its tickets' fees
+                // and a refund returns exactly what was paid.
+                || uint256(p.ticketPrice) * p.feeBps % BPS != 0
+        ) {
+            revert InvalidParams();
+        }
     }
 
     function _authorizeUpgrade(address) internal override onlyRole(UPGRADER_ROLE) {}

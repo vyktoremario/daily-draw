@@ -22,10 +22,25 @@ which picks a local Foundry install or falls back to Docker).
     settlement, money to the player only) and `claimReferral()`. Players' purchase history is kept
     per draw (OpenZeppelin `Checkpoints`) so activity is checked as of the draw's cutoff, without
     loops.
-  - Next: void, refund, unclaimed-prize sweep, pause and the 48-hour timelock (#27); invariant
-    suite (#28).
+  - Done (#27): `voidDraw(drawId, reason)` for a draw that closed but got no random number (the
+    admin at any time, anyone after 24 hours); its sales and fees never reach the pool or the
+    treasury, and a late random number for it is ignored. `refund(drawId, numbers)` returns price
+    plus fee for each of the caller's tickets, once per number (params must give a whole fee per
+    ticket, so refunds are exact). `sweepUnclaimed(drawId)` (anyone, `unclaimedPrizeDays` = 30
+    after settlement) moves unclaimed prizes and their referral shares into the rollover; the draw
+    becomes `Swept` and its claims revert. `pause()` / `unpause()` (`PAUSER_ROLE`) stop buying and
+    closing only; claims, referral claims, voiding, refunds, sweeps, withdrawals and the randomness
+    callback keep working.
+  - Roles: the 2-of-3 Safe holds `DEFAULT_ADMIN_ROLE` (treasury/buy-back addresses, keepers,
+    voiding) and `PAUSER_ROLE`. A 48-hour `TimelockController` (Safe = proposer, canceller and
+    executor) holds `PARAMS_ROLE` (`setParams`, `setRandomnessProvider`) and `UPGRADER_ROLE`.
+    `UPGRADER_ROLE` administers both timelocked roles, so the Safe can't grant them to itself.
+  - Next: invariant suite (#28).
 - `interfaces/IRandomnessProvider.sol`: randomness behind an adapter, so Chainlink VRF or another
   verifiable random function can be plugged in per chain (#24 decides the first chain).
+- `script/DeployDailyDraw.s.sol`: deploys the implementation, the ERC-1967 proxy and the
+  timelock, with the roles above; the deployer keeps nothing. Env: `MULTISIG`, `USDC`,
+  `RANDOMNESS`, `TREASURY`, `BUYBACK_RESERVE`, `FIRST_CUTOFF`.
 - `DrawAnchor.sol`: anchors naira draws' commitments and ticket Merkle roots (R3).
 
 ## Tests
@@ -33,6 +48,10 @@ which picks a local Foundry install or falls back to Docker).
 - `test/DailyDraw.t.sol`: buying, limits, referrer registration, closing and randomness.
 - `test/Settlement.t.sol`: settlement, rollover, claims, keeper claims, referral credits, and a
   fuzz test that the contract's USDC balance always equals what it owes.
+- `test/Safety.t.sol`: void and refund, sweep, pause and the timelocked roles.
+- `test/Deploy.t.sol`: runs the deploy script against mocks; params changes and upgrades only go
+  through the timelock, and only after 48 hours.
+- Every test checks that the contract's USDC balance equals what it owes (`assertSolvent`).
 - `test/SettlementVectors.t.sol`: runs every case in `packages/shared/test-vectors/settlement.json`
   through settlement and claims (via `test/harness/DailyDrawHarness.sol`, which seeds draw state),
   so the contract matches the TypeScript reference exactly.
