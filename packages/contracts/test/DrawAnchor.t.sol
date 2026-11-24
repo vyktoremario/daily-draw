@@ -57,7 +57,9 @@ contract DrawAnchorTest is Test {
     }
 
     /// Anyone other than the anchorer can never write, whatever they send.
-    function testFuzz_OnlyAnchorerCanWrite(address caller, uint256 drawNumber, bytes32 commitment) public {
+    function testFuzz_OnlyAnchorerCanWrite(address caller, uint256 drawNumber, bytes32 commitment)
+        public
+    {
         vm.assume(caller != worker);
         vm.prank(caller);
         vm.expectRevert(DrawAnchor.NotAnchorer.selector);
