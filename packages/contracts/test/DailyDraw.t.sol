@@ -1,76 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.28;
 
-import {Test} from "forge-std/Test.sol";
-import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {DailyDraw} from "../src/DailyDraw.sol";
-import {MockRandomness, MockUSDC} from "./mocks/Mocks.sol";
+import {DailyDrawBase} from "./DailyDrawBase.sol";
 
-contract DailyDrawTest is Test {
-    DailyDraw internal game;
-    MockUSDC internal usdc;
-    MockRandomness internal rng;
-
-    address internal admin = makeAddr("multisig");
-    address internal alice = makeAddr("alice");
-    address internal bob = makeAddr("bob");
-    address internal carol = makeAddr("carol");
-
-    uint64 internal constant START = 1_800_000_000;
-    uint64 internal firstCutoff = START + 12 hours;
-    uint256 internal constant ONE_USDC = 1_000_000;
-
-    function defaultParams() internal pure returns (DailyDraw.Params memory) {
-        return DailyDraw.Params({
-            ticketPrice: uint128(ONE_USDC),
-            feeBps: 1_000,
-            numberRange: 100,
-            winnersBps: 6_500,
-            teamBps: 1_000,
-            buybackBps: 500,
-            referrersBps: 2_000,
-            maxTicketsPerWallet: 20,
-            drawInterval: 1 days
-        });
-    }
-
-    function setUp() public {
-        vm.warp(START);
-        usdc = new MockUSDC();
-        rng = new MockRandomness();
-        DailyDraw impl = new DailyDraw();
-        bytes memory init =
-            abi.encodeCall(DailyDraw.initialize, (admin, usdc, rng, defaultParams(), firstCutoff));
-        game = DailyDraw(address(new ERC1967Proxy(address(impl), init)));
-
-        for (uint256 i; i < 3; ++i) {
-            address p = [alice, bob, carol][i];
-            usdc.mint(p, 1_000 * ONE_USDC);
-            vm.prank(p);
-            usdc.approve(address(game), type(uint256).max);
-        }
-    }
-
-    function nums(uint16 a) internal pure returns (uint16[] memory n) {
-        n = new uint16[](1);
-        n[0] = a;
-    }
-
-    function many(uint256 count, uint16 start) internal pure returns (uint16[] memory n) {
-        n = new uint16[](count);
-        for (uint256 i; i < count; ++i) {
-            n[i] = uint16((start + i) % 100);
-        }
-    }
-
-    function buy(address player, uint16[] memory numbers, address referrer) internal {
-        uint256 drawId = game.currentDrawId(); // read first: vm.prank applies to the next call only
-        vm.prank(player);
-        game.buyTickets(drawId, numbers, referrer);
-    }
-
+contract DailyDrawTest is DailyDrawBase {
     // ---------------------------------------------------------------------------------------------
     // Setup
     // ---------------------------------------------------------------------------------------------
@@ -87,7 +23,7 @@ contract DailyDrawTest is Test {
 
     function test_CannotInitializeTwice() public {
         vm.expectRevert(Initializable.InvalidInitialization.selector);
-        game.initialize(admin, usdc, rng, defaultParams(), firstCutoff + 1 days);
+        game.initialize(admin, usdc, rng, treasury, buyback, defaultParams(), firstCutoff + 1 days);
     }
 
     function test_RejectsBadParams() public {
@@ -244,7 +180,7 @@ contract DailyDrawTest is Test {
         rng.fulfill(1, 1_000_042); // 1_000_042 mod 100 = 42
 
         DailyDraw.Draw memory d = game.getDraw(1);
-        assertEq(uint8(d.status), uint8(DailyDraw.Status.Drawn));
+        assertEq(uint8(d.status), uint8(DailyDraw.Status.Settled)); // settled in the same call
         assertEq(d.winningNumber, 42);
         assertEq(d.winningTickets, 2);
     }
