@@ -189,10 +189,11 @@ Then add the keeper's key as an encrypted secret:
 2. **Secrets** tab → **New repository secret**. Name: `KEEPER_PRIVATE_KEY`. Value: the Keeper
    account's private key (from MetaMask, as in step 4). **Add secret**. GitHub never shows it again
    and hides it in logs.
-3. Recommended: **Variables** tab → **New repository variable**. Name: `TESTNET_RPC_URL`. Value:
-   `https://base-sepolia.gateway.tenderly.co`. (The default `https://sepolia.base.org` works too,
-   but it only lets the keeper look 200 blocks (about 7 minutes) at a time, so finding winners
-   takes about 90 seconds per day of sales instead of a second or two.)
+3. **Variables** tab → **New repository variable**. Name: `TESTNET_RPC_URL`. Value:
+   `https://sepolia.base.org`. Don't use the free Tenderly gateway here: it answers reads but
+   refuses to send transactions ("Request exceeds defined limit"), so the keeper can't close a
+   draw through it. The public RPC only lets the keeper look 200 blocks (about 7 minutes) at a
+   time, so finding winners takes longer, but the keeper handles that by itself.
 
 Check it works: **Actions** tab → **Keeper** → **Run workflow** → tick **Only look and log** →
 **Run workflow**. Open the run; the "Run the keeper" step should end with
@@ -220,6 +221,44 @@ To only look:
 ```bash
 pnpm keeper --dry-run
 ```
+
+### Step 8b. Start the keeper on time with cron-job.org
+
+GitHub's own schedule is unreliable: on the first day the 9:17am run started 10 hours late and
+the 8:47pm run never started. A run started through GitHub's API starts within seconds, so a free
+scheduler at [cron-job.org](https://cron-job.org) starts the keeper at the right times. The GitHub
+schedule stays as a backup; extra runs are harmless.
+
+1. **A GitHub token that can only start workflows in this repository.** GitHub → your picture →
+   **Settings** → **Developer settings** → **Personal access tokens** → **Fine-grained tokens** →
+   **Generate new token**.
+   - Name: `daily-draw keeper trigger`. Expiration: 1 year (put a reminder in your calendar).
+   - Repository access: **Only select repositories** → `daily-draw`.
+   - Permissions → Repository permissions → **Actions: Read and write**. Nothing else.
+   - **Generate token** and copy it. It goes only into cron-job.org, never into chat or the repo.
+2. **The job.** Sign up at cron-job.org → **Create cronjob**:
+   - Title: `Daily Draw keeper`.
+   - URL: `https://api.github.com/repos/vyktoremario/daily-draw/actions/workflows/keeper.yml/dispatches`
+   - Schedule: **Custom**. Time zone: `Africa/Lagos`. Days of month, months and weekdays: every.
+     Hours: `9`, `20`, `21`. Minutes: `17`, `47`. That is 9:17am, 9:47am, 8:17pm, 8:47pm,
+     9:17pm and 9:47pm; the ones with nothing due finish in seconds.
+   - **Advanced** tab:
+     - Request method: `POST`.
+     - Headers:
+       - `Accept`: `application/vnd.github+json`
+       - `Authorization`: `Bearer <the token>`
+       - `X-GitHub-Api-Version`: `2022-11-28`
+       - `Content-Type`: `application/json`
+     - Request body: `{"ref":"main"}` (runs close+claim, not a dry run).
+   - Turn on **Notify me when execution fails**.
+   - **Create**.
+3. **Test it.** On the job, click **Test run**. The answer should be `204 No Content`, and a new
+   **Keeper** run marked "workflow_dispatch" appears in GitHub's **Actions** tab within seconds.
+   A `401` or `403` means the token is wrong or lacks **Actions: Read and write**; a `404`
+   usually means the token can't see this repository.
+
+When the token expires, cron-job.org's runs start failing with `401` (it emails you): make a new
+token the same way and replace it in the job's `Authorization` header.
 
 ## Step 9. Host the web app on Vercel
 
