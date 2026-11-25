@@ -81,6 +81,27 @@ export const appConfig = parseAppConfig({
   NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID,
 });
 
+export interface NetworkDetails {
+  name: string;
+  chainId: number;
+  /** The chain's public RPC, for a player adding the network to their wallet by hand. */
+  rpcUrl: string;
+  symbol: string;
+  explorer: string | null;
+}
+
+/** What a player types into their wallet to add the app's network by hand. */
+export function networkDetails(config: Pick<AppConfig, 'chainKey'> = appConfig): NetworkDetails {
+  const chain = CHAINS[config.chainKey];
+  return {
+    name: chain.name,
+    chainId: chain.id,
+    rpcUrl: chain.rpcUrls.default.http[0]!,
+    symbol: chain.nativeCurrency.symbol,
+    explorer: chain.blockExplorers?.default.url ?? null,
+  };
+}
+
 /** Anvil's default accounts 1-5 (0 operates the draw). Unlocked on Anvil only; test keys. */
 export const ANVIL_ACCOUNTS: readonly Address[] = [
   '0x70997970C51812dc3A010C7d01b50e0d17dc79C8',

@@ -4,7 +4,7 @@ import { formatUsdc } from '@daily-draw/shared';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useConnect, useConnectors, useSwitchChain } from 'wagmi';
-import { appConfig } from '../lib/config';
+import { appConfig, networkDetails } from '../lib/config';
 import { friendlyError } from '../lib/errors';
 import { usePlayer, useUsdcBalance } from '../lib/game';
 import { Icon, Notice } from './ui';
@@ -93,7 +93,10 @@ export function ConnectSheet({ onClose }: { onClose: () => void }) {
             type="button"
             className="btn btn-secondary btn-block"
             disabled={isPending}
-            onClick={() => mutate({ connector: c, chainId: appConfig.chain.id })}
+            // Connect only: asking to switch networks in the same step makes mobile wallets
+            // (MetaMask, Trust) refuse the whole connection when they don't have the testnet.
+            // A wallet on another network gets the NetworkBanner instead.
+            onClick={() => mutate({ connector: c })}
             style={{ justifyContent: 'space-between' }}
           >
             {label(c)}
@@ -132,8 +135,41 @@ export function NetworkBanner() {
         >
           Switch to {appConfig.chain.name}
         </button>
-        {error && <span>{friendlyError(error)}</span>}
+        {error && <AddNetworkSteps reason={friendlyError(error)} />}
       </div>
     </Notice>
+  );
+}
+
+/** When the wallet won't switch (often: it doesn't know the network), how to add it by hand. */
+function AddNetworkSteps({ reason }: { reason: string }) {
+  const net = networkDetails();
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 14 }}>
+      <span>
+        Your wallet didn’t switch ({reason}). Add the network in your wallet’s network settings,
+        select it, then reload this page:
+      </span>
+      <span>
+        Name: <strong>{net.name}</strong>
+      </span>
+      <span>
+        RPC URL: <strong style={{ wordBreak: 'break-all' }}>{net.rpcUrl}</strong>
+      </span>
+      <span>
+        Chain ID: <strong>{net.chainId}</strong>
+      </span>
+      <span>
+        Currency: <strong>{net.symbol}</strong>
+      </span>
+      {net.explorer && (
+        <span>
+          Explorer: <strong style={{ wordBreak: 'break-all' }}>{net.explorer}</strong>
+        </span>
+      )}
+      {appConfig.isTestnet && (
+        <span className="muted">In MetaMask, turn on “Show test networks” first.</span>
+      )}
+    </div>
   );
 }
