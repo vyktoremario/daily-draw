@@ -83,11 +83,6 @@ export function AppShell({
         {mounted && <WalletButton />}
       </header>
       <main className="content">
-        {appConfig.isTestnet && (
-          <span className="pill pill-grey" style={{ alignSelf: 'flex-start' }}>
-            {appConfig.chain.name} · test USDC only
-          </span>
-        )}
         {mounted ? (
           <>
             <SetupProblem />
