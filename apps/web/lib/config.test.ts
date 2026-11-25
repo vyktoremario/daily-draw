@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseAppConfig } from './config';
+import { networkDetails, parseAppConfig } from './config';
 
 const GAME = '0xdc64a140aa3e981100a9beca4e685f962f0cf6c9';
 
@@ -39,5 +39,17 @@ describe('parseAppConfig', () => {
   it('rejects unknown chains and ignores bad addresses', () => {
     expect(() => parseAppConfig({ NEXT_PUBLIC_CHAIN: 'mars' })).toThrow(/not one of/);
     expect(parseAppConfig({ NEXT_PUBLIC_USDC_ADDRESS: 'nope' }).usdc).toBeNull();
+  });
+});
+
+describe('networkDetails', () => {
+  it('gives the public details for adding Base Sepolia by hand', () => {
+    expect(networkDetails({ chainKey: 'baseSepolia' })).toEqual({
+      name: 'Base Sepolia',
+      chainId: 84532,
+      rpcUrl: 'https://sepolia.base.org',
+      symbol: 'ETH',
+      explorer: 'https://sepolia.basescan.org',
+    });
   });
 });
