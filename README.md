@@ -39,13 +39,14 @@ apps/
   api/        NestJS (Fastify) API for the naira product: the only code that moves naira (R3)
   worker/     pg-boss jobs: draw open, cutoff, draw, settle, outbox (R3)
   ussd/       Africa's Talking USSD handler, menus only (R4)
-  web/        Next.js player app (crypto in R1, naira in R3)
+  web/        Next.js player app: connect wallet, USDC, referrals (R1); naira later (R3)
   admin/      Next.js admin console
   indexer/    Ponder indexer for contract events (R2, not started)
 packages/
   shared/     Money, game rules, settlement, fairness protocol: pure, tested
   db/         Postgres migrations and typed Kysely client (naira ledger)
-  contracts/  Foundry: DrawAnchor.sol (naira draw anchors); DailyDraw.sol, the on-chain game (R1, next)
+  contracts/  Foundry: DailyDraw.sol (the on-chain game), DrawAnchor.sol (naira draw anchors),
+              typed ABIs for TypeScript, local-chain dev scripts
   ui/         Design tokens from the mockups
   api-client/ Generated API client (later)
   config/     TypeScript presets
@@ -77,6 +78,50 @@ pnpm --filter @daily-draw/web dev      # http://localhost:3000
 pnpm --filter @daily-draw/admin dev    # http://localhost:3001
 ```
 
+## Local on-chain demo (R1)
+
+The whole crypto loop (connect, buy, draw, claim, refer) runs on a local Anvil chain with test
+USDC. Nothing here has real value.
+
+```bash
+pnpm install && pnpm build
+pnpm dev:chain                         # starts Anvil (docker compose) if needed, deploys, writes apps/web/.env.local
+pnpm --filter @daily-draw/web dev      # http://localhost:3000
+```
+
+`pnpm dev:chain` deploys `DevUSDC` (test USDC with a public faucet), `DevRandomness` (the operator
+chooses the number by hand) and `DailyDraw` behind its proxy, gives Anvil accounts 1 to 5 $1,000
+test USDC each, and writes the addresses to `packages/contracts/deployments/31337.json` and
+`apps/web/.env.local`. Run it again after restarting Anvil, which forgets everything.
+
+In the app, **Connect wallet** offers MetaMask (add the network: RPC `http://127.0.0.1:8545`, chain
+id 31337, and import an Anvil test key) and, on Anvil only, **Dev wallet 1-5**: Anvil's unlocked
+accounts, no extension needed. WalletConnect appears when `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` is
+set (see `apps/web/.env.example`).
+
+Drive the draw from a terminal (signs as Anvil account 0, the operator):
+
+```bash
+pnpm chain status                      # open draw, chain clock, rollover
+pnpm chain draw 42                     # move the clock to 8:45pm WAT, close sales, draw 42
+pnpm chain draw                        # same, with a random number
+pnpm chain close                       # only close sales (the app shows "number on its way")
+pnpm chain faucet 0xYourAddress 500    # mint test USDC
+pnpm chain warp 2                      # move the chain clock 2 hours on
+```
+
+A demo script: open `http://localhost:3000/?ref=<Dev wallet 1 address>`, connect **Dev wallet 2**,
+buy a bundle with 42 in it, switch to **Dev wallet 1** and buy a ticket (a referrer must have
+played in the last 30 days to earn), then `pnpm chain draw 42`. Dev wallet 2 sees "You won" on Home
+and claims on the reveal screen; Dev wallet 1 claims its referral share on Referrals.
+
+Smoke test against the running chain: `pnpm --filter @daily-draw/web test:e2e` (Playwright; run
+`pnpm --filter @daily-draw/web exec playwright install chromium` once).
+
+Adding a chain (Base Sepolia, Celo Sepolia, …) is configuration: deploy, then set
+`NEXT_PUBLIC_CHAIN` and the addresses in `apps/web/.env.local` (or the host's env). Chains the app
+knows are listed in `apps/web/lib/config.ts`.
+
 ## Rules of the road
 
 - Money is integers everywhere: kobo (`bigint`) for naira, USDC base units on-chain. Never floats.
@@ -91,8 +136,6 @@ pnpm --filter @daily-draw/admin dev    # http://localhost:3001
 1. Planning: done
 2. Requirements: v0.2 (crypto first, 65/15/20 split), a few rules still to confirm
 3. Design: v0.2 and player mockups
-4. Build: monorepo scaffolded, CI and naira ledger service done; next is `DailyDraw.sol` for the
-   R1 testnet demo
-
-The settlement code in `packages/shared` still uses the earlier single operator cut and is due to be
-updated to the 65/15/20 split with referrals (see the R1 tickets).
+4. Build: CI, naira ledger service, settlement with the 65/15/20 split and referrals (#23),
+   `DailyDraw.sol` (core, settlement and claims, safety and timelock, invariant suite: #25-#28)
+   and the crypto player app (#12) done; next is the testnet deployment (#29)

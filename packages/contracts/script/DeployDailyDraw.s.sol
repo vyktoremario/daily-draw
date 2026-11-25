@@ -34,7 +34,7 @@ contract DeployDailyDraw is Script {
         uint64 firstCutoff;
     }
 
-    function run() external returns (DailyDraw game, TimelockController timelock) {
+    function run() external virtual returns (DailyDraw game, TimelockController timelock) {
         Config memory c = Config({
             multisig: vm.envAddress("MULTISIG"),
             usdc: IERC20(vm.envAddress("USDC")),

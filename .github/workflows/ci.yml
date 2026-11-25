@@ -47,3 +47,6 @@ jobs:
         working-directory: packages/contracts
       - run: forge test -vvv
         working-directory: packages/contracts
+      - name: Typed ABIs (ts/abi.ts) match the contracts
+        run: node scripts/abi.mjs --check
+        working-directory: packages/contracts

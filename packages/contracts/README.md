@@ -43,6 +43,29 @@ which picks a local Foundry install or falls back to Docker).
   timelock, with the roles above; the deployer keeps nothing. Env: `MULTISIG`, `USDC`,
   `RANDOMNESS`, `TREASURY`, `BUYBACK_RESERVE`, `FIRST_CUTOFF`.
 - `DrawAnchor.sol`: anchors naira draws' commitments and ticket Merkle roots (R3).
+- `dev/DevUSDC.sol` and `dev/DevRandomness.sol`: local chain and testnet demo only. Test USDC with a
+  public `faucet()` ($100) and `mint` (up to $10,000 a call); a randomness provider whose answer the
+  operator sends by hand (`fulfill(requestId, value)`). Not random: never deploy it for real money.
+- `script/DeployLocal.s.sol`: DevUSDC + DevRandomness + `DeployDailyDraw` with the deployer in every
+  role, first cutoff the next 8:45pm WAT, $1,000 test USDC to Anvil accounts 1-5. Writes
+  `deployments/<chainId>.json` (git-ignored). Run through `pnpm dev:chain` (root README).
+
+## TypeScript
+
+`ts/abi.ts` holds the ABIs as `as const` exports (`dailyDrawAbi`, `devUsdcAbi`,
+`devRandomnessAbi`) for viem and wagmi; the package is `@daily-draw/contracts`. It is generated
+from `forge build` output and checked in, so TypeScript builds don't need Foundry. After changing a
+contract:
+
+```bash
+pnpm contracts:build && pnpm contracts:abi
+```
+
+CI fails if the file is stale (`node scripts/abi.mjs --check` in the contracts job).
+
+`scripts/dev-chain.ts` (`pnpm dev:chain`) and `scripts/chain.ts` (`pnpm chain status | close | draw
+[NN] | faucet <address> [$] | warp <hours>`) drive a local Anvil chain. `./scripts/forge.sh` points
+`localhost` RPC URLs at the host when it falls back to Docker.
 
 ## Tests
 
@@ -57,6 +80,8 @@ which picks a local Foundry install or falls back to Docker).
   through settlement and claims (via `test/harness/DailyDrawHarness.sol`, which seeds draw state),
   so the contract matches the TypeScript reference exactly.
 
+- `test/DevDeploy.t.sol`: the local demo setup: cutoff time, faucet, and a full buy, close,
+  hand-triggered draw and claim.
 - `test/EdgeCases.t.sol`: input checks not covered elsewhere (zero addresses, past first cutoff,
   closing a draw that isn't open), for full coverage.
 

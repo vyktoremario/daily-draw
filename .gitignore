@@ -14,3 +14,9 @@ packages/contracts/cache/
 packages/contracts/broadcast/*/31337/
 # Next.js regenerates this on every dev/build run
 next-env.d.ts
+
+# Local deployments written by script/DeployLocal.s.sol (pnpm dev:chain)
+packages/contracts/deployments/
+# Playwright
+apps/web/test-results/
+apps/web/playwright-report/
