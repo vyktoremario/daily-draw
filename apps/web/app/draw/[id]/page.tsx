@@ -220,6 +220,15 @@ function DrawView({ drawId, draw }: { drawId: bigint; draw: Draw }) {
             Watch again
           </button>
         )}
+        {done && (
+          <Link
+            href={`/verify/${drawId}`}
+            className="btn btn-ghost-light"
+            data-testid="verify-link"
+          >
+            Verify this draw
+          </Link>
+        )}
         <Link href="/results" className="btn btn-ghost-light">
           All results
         </Link>
@@ -227,7 +236,8 @@ function DrawView({ drawId, draw }: { drawId: bigint; draw: Draw }) {
       {settled && (
         <p style={{ fontSize: 12, color: 'var(--night-text)', textAlign: 'center', margin: 0 }}>
           The animation is just for show. The number was fixed when the random value reached the
-          contract, which settled the pool in the same transaction.
+          contract, which settled the pool in the same transaction. Verify this draw to redo the
+          maths yourself.
         </p>
       )}
     </>

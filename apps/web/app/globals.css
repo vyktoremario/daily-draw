@@ -576,3 +576,81 @@ button {
     transition: none;
   }
 }
+
+/* Verify page ----------------------------------------------------------------------------- */
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+}
+
+.field {
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--ground);
+  color: var(--ink);
+  width: 100%;
+}
+
+.kv {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  gap: 8px 12px;
+  margin: 0;
+  font-size: 14px;
+}
+.kv dt {
+  color: var(--ink-muted);
+}
+.kv dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.checks {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.check-mark {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+.check-fail,
+.verify-fail {
+  background: #fde8e6;
+  color: #8a1c12;
+}
+
+.maths summary {
+  cursor: pointer;
+  font-weight: 700;
+  min-height: 28px;
+}
+.maths h3 {
+  font-size: 15px;
+  margin: 16px 0 8px;
+}
+.maths ol {
+  margin: 0 0 12px;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.maths li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
