@@ -1,0 +1,29 @@
+{
+  "name": "@daily-draw/contracts",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Solidity contracts (Foundry), their typed ABIs for TypeScript, and local-chain dev scripts",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.scripts.json",
+    "abi": "node scripts/abi.mjs",
+    "abi:check": "node scripts/abi.mjs --check",
+    "dev:chain": "tsx scripts/dev-chain.ts",
+    "chain": "tsx scripts/chain.ts"
+  },
+  "devDependencies": {
+    "@daily-draw/config": "workspace:*",
+    "tsx": "^4.23.15",
+    "viem": "^2.58.6"
+  }
+}

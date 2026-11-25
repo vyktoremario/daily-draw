@@ -17,7 +17,11 @@
     "contracts:build": "./scripts/forge.sh build",
     "contracts:test": "./scripts/forge.sh test",
     "services:up": "docker compose up -d",
-    "services:down": "docker compose down"
+    "services:down": "docker compose down",
+    "contracts:abi": "pnpm --filter @daily-draw/contracts abi",
+    "contracts:abi:check": "pnpm --filter @daily-draw/contracts abi:check",
+    "dev:chain": "pnpm --filter @daily-draw/contracts dev:chain",
+    "chain": "pnpm --silent --filter @daily-draw/contracts chain"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

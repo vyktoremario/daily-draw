@@ -1,0 +1,8 @@
+{
+  "extends": "@daily-draw/config/tsconfig/library.json",
+  "compilerOptions": {
+    "rootDir": "${configDir}/ts",
+    "outDir": "${configDir}/dist"
+  },
+  "include": ["${configDir}/ts"]
+}
