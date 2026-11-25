@@ -35,6 +35,9 @@ importers:
 
   apps/admin:
     dependencies:
+      '@daily-draw/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@daily-draw/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -50,6 +53,9 @@ importers:
       react-dom:
         specifier: ^19.3.1
         version: 19.3.1(react@19.3.1)
+      viem:
+        specifier: ^2.58.6
+        version: 2.58.6(typescript@5.9.3)(zod@3.25.76)
     devDependencies:
       '@daily-draw/config':
         specifier: workspace:*
@@ -60,6 +66,9 @@ importers:
       '@types/react-dom':
         specifier: ^19.3.0
         version: 19.3.0(@types/react@19.3.0)
+      vitest:
+        specifier: ^5.1.1
+        version: 5.1.1(@opentelemetry/api@1.10.0)(@types/node@22.20.5)(vite@8.3.8(@types/node@22.20.5)(esbuild@0.28.2)(tsx@4.23.15))
 
   apps/api:
     dependencies:

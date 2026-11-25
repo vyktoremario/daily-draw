@@ -269,6 +269,20 @@ pnpm --filter @daily-draw/web dev
 and open http://localhost:3000. (This replaces `apps/web/.env.local`; run `pnpm dev:chain` to go
 back to the local chain.)
 
+## Step 9b (optional). Host the admin dashboard
+
+A read-only page for the founders: today's draw, past draws, money held vs owed, keeper and VRF
+health, pending timelock changes, players. It needs no addresses: it reads
+`deployments/base-sepolia.json`.
+
+1. [vercel.com/new](https://vercel.com/new) → import the same repository again as a **second
+   project**. **Root Directory**: `apps/admin`.
+2. Environment variables: `ADMIN_USER`, `ADMIN_PASSWORD` (long and random) and
+   `DEPLOYMENT=base-sepolia`. Add `DRIP_WALLET_ADDRESS` when the gas drip has a wallet.
+3. Deploy, open the address and log in with that user name and password.
+
+Details, optional settings and running it locally: `apps/admin/README.md`.
+
 ## Step 10. Smoke test
 
 Use a separate MetaMask account as a "player" (not Admin, Deployer or Keeper) with a little Base
@@ -300,7 +314,7 @@ Sepolia ETH for fees. Free test ETH:
 
 - **Nothing to do daily**: the keeper closes draws and Chainlink answers.
 - **Weekly**: check the LINK balance at vrf.chain.link and the Keeper's ETH (the keeper warns in
-  its log when it drops below 0.001 ETH).
+  its log when it drops below 0.001 ETH). The admin dashboard (step 9b) shows both, with warnings.
 - **Changing a setting or upgrading** goes through the timelock: the Admin wallet schedules it,
   waits `TIMELOCK_DELAY` (1 hour), then executes it. Pausing is immediate: BaseScan → DailyDraw →
   **Contract** → **Write as Proxy** → connect Admin → `pause`.
