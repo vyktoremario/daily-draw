@@ -1,12 +1,14 @@
 import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
 import { colors, fonts } from '@daily-draw/ui';
+import { DemoBanner } from '../components/DemoBanner';
 import { Providers } from './providers';
 import './globals.css';
 
 export const metadata: Metadata = {
   title: 'Daily Draw',
-  description: 'A $1 daily number draw in USDC that you can check yourself.',
+  description:
+    'A daily number draw you can verify yourself. A portfolio demo on a testnet: test USDC only, no real money.',
 };
 
 export const viewport: Viewport = {
@@ -33,6 +35,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <style>{tokenCss}</style>
       </head>
       <body>
+        <DemoBanner />
         <Providers>{children}</Providers>
       </body>
     </html>

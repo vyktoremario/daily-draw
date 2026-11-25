@@ -64,7 +64,7 @@ export default function Home() {
       </section>
 
       <p className="muted" style={{ margin: 0, fontSize: 13, textAlign: 'center' }}>
-        Play for fun, not for income. 18+ only.
+        A portfolio demo: tickets and prizes are test USDC with no value. 18+ only.
       </p>
     </AppShell>
   );

@@ -4,7 +4,7 @@
 export const CONSENT_STORAGE_KEY = 'daily-draw:consent';
 export const CONSENT_VERSION = 1;
 
-/** Placeholder until the terms page is written (issue #33). */
+/** The "About this demo" page, which holds the terms. */
 export const TERMS_PATH = '/terms';
 
 interface StoredConsent {

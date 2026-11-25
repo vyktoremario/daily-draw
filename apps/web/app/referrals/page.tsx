@@ -109,7 +109,7 @@ export default function ReferralsPage() {
       <h1 className="page-title">Referrals</h1>
       <p className="muted" style={{ margin: 0, fontSize: 15, lineHeight: 1.5 }}>
         Share your link. When a friend you brought wins, you get a share of the 20% of the pool set
-        aside for referrers, paid in USDC.
+        aside for referrers, paid in test USDC.
       </p>
 
       {!isConnected || !address ? (

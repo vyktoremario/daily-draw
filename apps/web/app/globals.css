@@ -42,6 +42,32 @@ button {
 
 /* Layout ---------------------------------------------------------------------------------- */
 
+/* Portfolio demo notice on every page (components/DemoBanner.tsx). */
+.demo-banner {
+  background: var(--night);
+  color: var(--night-text);
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: center;
+  padding: 6px 12px;
+}
+.demo-banner strong {
+  color: #fff;
+  font-weight: 600;
+}
+.demo-banner a {
+  color: var(--gold);
+  font-weight: 600;
+}
+.demo-banner a:hover {
+  color: #fff;
+}
+@media (max-width: 400px) {
+  .demo-banner-network {
+    display: none;
+  }
+}
+
 .shell {
   min-height: 100dvh;
   max-width: 480px;

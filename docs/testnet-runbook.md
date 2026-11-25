@@ -193,7 +193,9 @@ Then add the keeper's key as an encrypted secret:
    `https://sepolia.base.org`. Don't use the free Tenderly gateway here: it answers reads but
    refuses to send transactions ("Request exceeds defined limit"), so the keeper can't close a
    draw through it. The public RPC only lets the keeper look 200 blocks (about 7 minutes) at a
-   time, so finding winners takes longer, but the keeper handles that by itself.
+   time, so finding winners takes longer, but the keeper handles that by itself. (Why:
+   [incident write-up](incidents/2026-11-25-keeper-missed-close.md). Tenderly is still fine for
+   the web app's `NEXT_PUBLIC_RPC_URL`, which only reads.)
 
 Check it works: **Actions** tab → **Keeper** → **Run workflow** → tick **Only look and log** →
 **Run workflow**. Open the run; the "Run the keeper" step should end with
