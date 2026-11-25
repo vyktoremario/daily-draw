@@ -12,9 +12,34 @@ export type Slip = (number | null)[];
 export const RULES: GameRules = ONCHAIN_RULES;
 export const BUNDLES = RULES.bundleSizes;
 
+/**
+ * Tickets one wallet may buy in a draw (one draw a day). Each draw copies the contract's
+ * `maxTicketsPerWallet` when it opens, and `buyTickets` reverts above it; the product default
+ * (20) is used only while the open draw loads. Raised over time through the timelock (#33).
+ */
+export function walletLimitOf(
+  draw: { params: { maxTicketsPerWallet: number } } | undefined,
+): number {
+  return draw ? draw.params.maxTicketsPerWallet : RULES.maxTicketsPerPlayerPerDay;
+}
+
 /** Bundle sizes a wallet can still buy in a draw, given how many tickets it already holds. */
-export function availableBundles(bought: number, rules: GameRules = RULES): number[] {
-  return rules.bundleSizes.filter((size) => bought + size <= rules.maxTicketsPerPlayerPerDay);
+export function availableBundles(
+  bought: number,
+  limit: number = RULES.maxTicketsPerPlayerPerDay,
+  rules: GameRules = RULES,
+): number[] {
+  return rules.bundleSizes.filter((size) => bought + size <= limit);
+}
+
+/** Whether buying `count` more keeps the wallet within the draw's limit. */
+export function withinLimit(bought: number, count: number, limit: number): boolean {
+  return bought + count <= limit;
+}
+
+/** "3 of 20 tickets today" */
+export function limitLine(bought: number, limit: number): string {
+  return `${bought} of ${limit} tickets today`;
 }
 
 /** Change the bundle size, keeping the numbers already picked (from the start). */

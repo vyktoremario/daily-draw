@@ -343,6 +343,27 @@ fees. Free test ETH:
    green ✓ "Contract Source Code Verified", and the DailyDraw page lists `closeDraw` and
    `fulfillRandomness` calls each day.
 
+## Blocked countries, 18+ confirmation and ticket limits
+
+These launch safeguards (issue #33) are on by default; nothing to set up on the testnet.
+
+- **Blocked countries.** Vercel tells the app each visitor's country, and visitors from a blocked
+  country or region see only "Not available in your country" (the API answers 451). Until the
+  lawyer gives the real list, the app blocks a placeholder list (`DEFAULT_BLOCKED_COUNTRIES` in
+  `apps/web/lib/geo.ts`: Cuba, Iran, North Korea, Syria, and Crimea, Donetsk and Luhansk). To use
+  another list, set `BLOCKED_COUNTRIES` in Vercel → **Settings** → **Environment Variables**
+  (country codes, or country-region codes for regions: `CU,IR,KP,SY,UA-43,UA-14,UA-09`; `none`
+  blocks nobody), then **Redeploy**. Running locally there is no country, so nobody is blocked.
+  To check a deployment, ask a friend abroad or use a VPN; locally,
+  `curl -H "x-vercel-ip-country: IR" http://localhost:3000/` shows the blocked page.
+- **18+ confirmation.** Before a browser's first ticket, the Play screen asks the player to
+  confirm they are 18 or older and agree to the terms. It is remembered in that browser. The
+  terms page (`/terms`) is a placeholder until the lawyer's version is ready.
+- **Ticket limit per wallet.** The contract caps how many tickets one wallet buys in a draw (one
+  draw a day): `maxTicketsPerWallet`, 20 at deployment, never below 10. The Play screen shows "3
+  of 20 tickets today" and offers only bundles that fit. Raising it is a timelocked params change
+  (see Day-to-day) and applies from the next draw.
+
 ---
 
 ## Day-to-day
@@ -437,6 +458,7 @@ number of USDC units per ticket).
 | Keeper run says `No base-sepolia deployment committed yet`     | `packages/contracts/deployments/base-sepolia.json` isn't on `main` yet (step 8).                                                                                                                                                                                       |
 | Web app: tickets or referrals don't load                       | Check `NEXT_PUBLIC_RPC_URL` in Vercel (step 9) and redeploy.                                                                                                                                                                                                           |
 | Players see “ask the person who invited you for test ETH”      | The drip is off or refused. Open `/api/drip`: `available: false` means `DRIP_PRIVATE_KEY` or the Upstash variables are missing (step 9b) or the drip wallet is low; top it up. Vercel → **Logs** (search `drip:`) shows daily-cap and failure lines.                   |
+| Players see “Not available in your country”                    | Their country (or region) is on the blocked list. Check `BLOCKED_COUNTRIES` in Vercel (unset = the placeholder list in `apps/web/lib/geo.ts`) and redeploy after changing it.                                                                                          |
 | `pnpm testnet:deploy`: `Missing in .env: ...`                  | Fill in the named variables.                                                                                                                                                                                                                                           |
 | `pnpm testnet:deploy`: insufficient funds                      | The Deployer needs more Base Sepolia ETH.                                                                                                                                                                                                                              |
 

@@ -11,6 +11,7 @@ import { NumberBadge, Notice, TxNotice, num } from '../../components/ui';
 import { GasDripNotice } from '../../components/GasDrip';
 import { ConnectPrompt } from '../../components/Wallet';
 import { appConfig } from '../../lib/config';
+import { TERMS_PATH, readConsent, saveConsent } from '../../lib/consent';
 import {
   CONFIGURED,
   DrawStatus,
@@ -25,16 +26,18 @@ import {
 import { REFERRAL_STORAGE_KEY, referrerForPurchase, shortAddress } from '../../lib/referral';
 import {
   BUNDLES,
-  RULES,
   availableBundles,
   bundleCost,
   formatFee,
   groupNumbers,
   isComplete,
+  limitLine,
   luckyDip,
   placeNumber,
   pricingOf,
   resizeSlip,
+  walletLimitOf,
+  withinLimit,
   type Slip,
 } from '../../lib/tickets';
 import { drawTime, formatWatDate, formatWatTime } from '../../lib/time';
@@ -92,12 +95,18 @@ function Picker({ onBought }: { onBought: (b: Bought) => void }) {
   const [selected, setSelected] = useState<number | undefined>(undefined);
   const [digits, setDigits] = useState('');
   const [savedRef, setSavedRef] = useState<string | null>(null);
+  // One-time 18+ and terms confirmation before the first ticket (R-02).
+  const [consented, setConsented] = useState(true);
   const tx = useTransactions();
 
   useEffect(() => setSavedRef(window.localStorage.getItem(REFERRAL_STORAGE_KEY)), []);
+  useEffect(() => setConsented(readConsent(window.localStorage)), []);
 
-  const bundles = availableBundles(Number(alreadyBought));
-  const remaining = RULES.maxTicketsPerPlayerPerDay - Number(alreadyBought);
+  // The open draw's own per-wallet limit (the contract's `maxTicketsPerWallet`, C-12).
+  const limit = walletLimitOf(current);
+  const held = Number(alreadyBought);
+  const bundles = availableBundles(held, limit);
+  const remaining = Math.max(0, limit - held);
   // Keep the chosen bundle valid if the wallet limit shrinks.
   useEffect(() => {
     if (isConnected && !bundles.includes(size) && bundles.length > 0) {
@@ -138,6 +147,8 @@ function Picker({ onBought }: { onBought: (b: Bought) => void }) {
 
   const buy = async () => {
     if (!complete || currentId === undefined || !current) return;
+    // The contract would revert anyway; don't ask the wallet to sign a purchase over the limit.
+    if (!withinLimit(held, size, walletLimitOf(current))) return;
     const numbers = slip as number[];
     const total = bundleCost(size, pricingOf(current)).total;
     const hash = await tx.run(async (step) => {
@@ -197,8 +208,8 @@ function Picker({ onBought }: { onBought: (b: Bought) => void }) {
         {isConnected && (
           <span className="muted" style={{ fontSize: 13 }}>
             {remaining > 0
-              ? `You can buy ${remaining} more in this draw (limit ${RULES.maxTicketsPerPlayerPerDay}).`
-              : `You have reached the limit of ${RULES.maxTicketsPerPlayerPerDay} tickets for this draw.`}
+              ? `${limitLine(held, limit)} · ${remaining} more allowed.`
+              : `${limitLine(held, limit)}: that's the limit. Come back for the next draw.`}
           </span>
         )}
       </section>
@@ -316,11 +327,18 @@ function Picker({ onBought }: { onBought: (b: Bought) => void }) {
               </Link>
             )}
           </>
+        ) : !consented ? (
+          <AgeConfirm
+            onConfirm={() => {
+              saveConsent(window.localStorage);
+              setConsented(true);
+            }}
+          />
         ) : (
           <button
             type="button"
             className="btn btn-gold btn-lg btn-block"
-            disabled={!complete || tx.busy || wrongChain || remaining < size}
+            disabled={!complete || tx.busy || wrongChain || !withinLimit(held, size, limit)}
             onClick={buy}
           >
             {!complete
@@ -330,14 +348,51 @@ function Picker({ onBought }: { onBought: (b: Bought) => void }) {
                 : `Buy ${size} ticket${size === 1 ? '' : 's'} for ${formatUsdc(cost.total)}`}
           </button>
         )}
-        {isConnected && complete && allowance < cost.total && salesOpen && !shortOfUsdc && (
-          <span className="muted" style={{ fontSize: 12, textAlign: 'center' }}>
-            Two steps in your wallet: allow the game to take {formatUsdc(cost.total)} USDC, then
-            buy.
-          </span>
-        )}
+        {isConnected &&
+          consented &&
+          complete &&
+          allowance < cost.total &&
+          salesOpen &&
+          !shortOfUsdc && (
+            <span className="muted" style={{ fontSize: 12, textAlign: 'center' }}>
+              Two steps in your wallet: allow the game to take {formatUsdc(cost.total)} USDC, then
+              buy.
+            </span>
+          )}
       </div>
     </>
+  );
+}
+
+/** Asked once per browser, before the first purchase. */
+function AgeConfirm({ onConfirm }: { onConfirm: () => void }) {
+  const [checked, setChecked] = useState(false);
+  return (
+    <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 14 }}>
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={(e) => setChecked(e.target.checked)}
+          style={{ marginTop: 3 }}
+        />
+        <span>
+          I am 18 or older and I agree to the{' '}
+          <Link href={TERMS_PATH} target="_blank">
+            terms
+          </Link>
+          .
+        </span>
+      </label>
+      <button
+        type="button"
+        className="btn btn-primary btn-block"
+        disabled={!checked}
+        onClick={onConfirm}
+      >
+        Continue
+      </button>
+    </div>
   );
 }
 
