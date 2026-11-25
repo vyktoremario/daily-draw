@@ -302,6 +302,20 @@ wallet or the database is unavailable, the drip refuses; it never sends without 
    wallet's address and its balance in wei (`dripBalanceWei`; 20000000000000000 = 0.02 ETH).
    `"available": false` means the key or database is missing, or the wallet is nearly empty.
 
+## Step 9c (optional). Host the admin dashboard
+
+A read-only page for the founders: today's draw, past draws, money held vs owed, keeper and VRF
+health, pending timelock changes, players. It needs no addresses: it reads
+`deployments/base-sepolia.json`.
+
+1. [vercel.com/new](https://vercel.com/new) → import the same repository again as a **second
+   project**. **Root Directory**: `apps/admin`.
+2. Environment variables: `ADMIN_USER`, `ADMIN_PASSWORD` (long and random) and
+   `DEPLOYMENT=base-sepolia`. Add `DRIP_WALLET_ADDRESS` (the drip wallet from step 9b) so it can warn when the drip runs low.
+3. Deploy, open the address and log in with that user name and password.
+
+Details, optional settings and running it locally: `apps/admin/README.md`.
+
 ## Step 10. Smoke test
 
 Use a separate MetaMask account as a "player" (not Admin, Deployer, Keeper or Drip). With the gas
@@ -336,7 +350,7 @@ fees. Free test ETH:
 - **Nothing to do daily**: the keeper closes draws and Chainlink answers.
 - **Weekly**: check the LINK balance at vrf.chain.link and the Keeper's ETH (the keeper warns in
   its log when it drops below 0.001 ETH), and the drip wallet's balance at `/api/drip` (each
-  drip is also logged in Vercel → **Logs**, search `drip:`). Top it up when it runs low.
+  drip is also logged in Vercel → **Logs**, search `drip:`). Top it up when it runs low. The admin dashboard (step 9c) shows all three, with warnings.
 - **Changing a setting or upgrading** goes through the timelock: the Admin wallet schedules it,
   waits `TIMELOCK_DELAY` (1 hour), then executes it. The ticket fee has its own command (next
   section). Pausing is immediate: BaseScan → DailyDraw → **Contract** → **Write as Proxy** →
