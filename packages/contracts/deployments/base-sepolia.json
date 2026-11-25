@@ -1,0 +1,18 @@
+{
+  "admin": "0xECfeb88A1fFcce1d7dec2Dbc9Ef53dc4301D109f",
+  "chainId": 84532,
+  "dailyDraw": "0x5f953504743B7Da528A78A2CA4C3941cFda62ED9",
+  "dailyDrawImplementation": "0x57B5E38c9A875476D6A288088be76F1276cA12BD",
+  "deployedAt": 1795573937,
+  "firstCutoff": 1795635900,
+  "keeper": "0x9032f538d36fD201D019d11361FDBb1EE72D1034",
+  "network": "base-sepolia",
+  "randomness": "0x5d73306B320DF9784d8B2c40Af9E744c974a16Ef",
+  "startBlock": 63260343,
+  "timelock": "0x1AFE1F7712224aCecEC453F3C7a09615A8804f89",
+  "timelockDelay": 3600,
+  "usdc": "0xbf8a9E2d6b3f2Cc8C2479aC3fDD655228dcc0651",
+  "vrfCoordinator": "0x5C210eF41CD1a72de73bF76eC39637bB0d3d7BEE",
+  "vrfKeyHash": "0x9e1344a1247c8a1785d0a4681a27152bffdb43666ae5bf7d14d24a5efd44bf71",
+  "vrfSubscriptionId": "5515456418613449602881860396047899730608824941507335107874301703688044582655"
+}
