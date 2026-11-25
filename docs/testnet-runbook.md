@@ -338,8 +338,79 @@ fees. Free test ETH:
   its log when it drops below 0.001 ETH), and the drip wallet's balance at `/api/drip` (each
   drip is also logged in Vercel → **Logs**, search `drip:`). Top it up when it runs low.
 - **Changing a setting or upgrading** goes through the timelock: the Admin wallet schedules it,
-  waits `TIMELOCK_DELAY` (1 hour), then executes it. Pausing is immediate: BaseScan → DailyDraw →
-  **Contract** → **Write as Proxy** → connect Admin → `pause`.
+  waits `TIMELOCK_DELAY` (1 hour), then executes it. The ticket fee has its own command (next
+  section). Pausing is immediate: BaseScan → DailyDraw → **Contract** → **Write as Proxy** →
+  connect Admin → `pause`.
+
+## Changing the ticket fee (10% → 2%)
+
+The fee is 2% on top of the $1 price: players pay **$1.02** a ticket and the whole $1 goes into
+the pool. Deployments from now on start at 2%. The game deployed before that change charges 10%
+($1.10) until the Admin changes its `feeBps` setting from 1000 to 200, which goes through the
+timelock: schedule it, wait 1 hour, execute it. No redeploy, and nothing else changes.
+
+Each draw copies the settings when it opens, so **the draw that is open when the change executes
+keeps $1.10** (its players paid $1.10 and refunds return exactly that). The first draw to charge
+$1.02 is the one that opens after the next 8:45pm WAT close.
+
+Order: change the contract first, then deploy the web app with the 2% code. The web app reads the
+price and fee from the open draw itself, so it shows $1.10 until that draw closes and $1.02 after,
+whichever is deployed first; but the contract change has to happen for the price to drop.
+
+**1. Put the Admin key in `.env` (only for this).** MetaMask → switch to **Admin** → account menu
+(⋮) → **Account details** → **Show private key** → copy, and paste it after `ADMIN_PRIVATE_KEY=`
+in `.env` (add the line if your `.env` is older than this section). Never paste it anywhere else.
+
+**2. Look first (sends nothing):**
+
+```bash
+pnpm testnet:set-fee status
+```
+
+It shows the open draw's fee (`1000 bps`), the live setting (`1000 bps -> new fee: 200 bps`) and
+`Not scheduled yet`.
+
+**3. Rehearse, then schedule.** The dry run simulates against Base Sepolia and sends nothing:
+
+```bash
+pnpm testnet:set-fee schedule --dry-run
+```
+
+```bash
+pnpm testnet:set-fee schedule
+```
+
+Success looks like `Scheduled: setParams with feeBps 200`, then
+`ONCHAIN EXECUTION COMPLETE & SUCCESSFUL`. Nothing changes for players yet.
+
+**4. Wait 1 hour.** `pnpm testnet:set-fee status` says `Scheduled, waiting: executable from unix
+time ...` until then, and `Scheduled and ready` after. Running `execute` too early fails with
+`NotReadyYet` and changes nothing; just run it again later.
+
+**5. Execute:**
+
+```bash
+pnpm testnet:set-fee execute
+```
+
+Success looks like `Executed: the live feeBps is now 200.` Then remove the key from `.env` again
+(leave `ADMIN_PRIVATE_KEY=` empty).
+
+**6. Check.** `pnpm testnet:set-fee status` now says `The live fee is already 200 bps`. Then:
+
+- Before the next 8:45pm WAT: the open draw still charges $1.10 (home button "Play for $1.10").
+- After the keeper closes that draw, the new draw charges $1.02. On
+  https://daily-draw-lake.vercel.app the home button says **Play for $1.02** and the line under it
+  **$1 a ticket + 2% fee**. Buy 1, 2, 5 and 10 tickets with a player wallet: MetaMask's approval
+  asks for $1.02, $2.04, $5.10 and $10.20, and **Wallet** → Ticket purchases lists the same.
+- On BaseScan → DailyDraw → **Read as Proxy**: `params` shows `feeBps` 200, and
+  `quote(<new draw id>, 1)` returns `1000000` and `20000`.
+
+Messages you might see: `FeeAlreadySet(200)` (already done: nothing to do), `AlreadyScheduled`
+(step 3 already ran: wait and execute), `NotScheduled` (run step 3 first),
+`NotTheTimelockAdmin` (`ADMIN_PRIVATE_KEY` is another wallet's key). For a different fee add
+`--fee=<bps>` to every command, e.g. `--fee=250` for 2.5% (at most 2000, and it must give a whole
+number of USDC units per ticket).
 
 ## When something goes wrong
 
@@ -378,6 +449,8 @@ Nothing is tied to Base Sepolia except configuration:
 | `pnpm testnet:info`                         | Addresses, the VRF consumer to add, and the Vercel variables. |
 | `pnpm keeper` / `pnpm keeper --dry-run`     | One keeper pass from your computer (or just look).            |
 | `pnpm keeper --only=close` / `--only=claim` | Just one of the two tasks.                                    |
+| `pnpm testnet:set-fee status`               | The live ticket fee and any scheduled change. Sends nothing.  |
+| `pnpm testnet:set-fee schedule` / `execute` | Change the ticket fee through the timelock (Admin key).       |
 
 Files: `packages/contracts/script/DeployTestnet.s.sol` (deployment),
 `packages/contracts/src/randomness/ChainlinkVrfProvider.sol` (VRF adapter; the two Chainlink

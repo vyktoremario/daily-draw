@@ -20,8 +20,9 @@ remappings = [
 # Settlement vectors shared with packages/shared (read by tests from #26 on).
 fs_permissions = [
   { access = "read", path = "../shared/test-vectors" },
-  # DeployLocal writes deployments/<chainId>.json for the web app (pnpm dev:chain).
-  { access = "write", path = "./deployments" },
+  # DeployLocal writes deployments/<chainId>.json for the web app (pnpm dev:chain); SetFee reads
+  # the testnet addresses from deployments/<network>.json.
+  { access = "read-write", path = "./deployments" },
 ]
 
 [fmt]

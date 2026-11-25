@@ -128,13 +128,14 @@ contract SafetyTest is DailyDrawBase {
         uint256 voided = closeOnly();
         voidAsAdmin(voided);
         assertEq(game.rollover(), 10 * ONE_USDC);
-        assertEq(game.treasuryBalance(), ONE_USDC); // only draw 1's fees
+        assertEq(game.treasuryBalance(), feeOn(10 * ONE_USDC)); // only draw 1's fees
         assertSolvent();
 
         buy(carol, nums(42), address(0)); // draw 3: pool = 1 + 10 rollover, bob's 5 not included
         uint256 drawId = closeAndDraw(42);
         assertEq(game.getDraw(drawId).pool, 11 * ONE_USDC);
-        assertEq(game.treasuryBalance(), ONE_USDC + 1_100_000 + 100_000); // + 10% team + fee
+        // + 10% team + carol's fee
+        assertEq(game.treasuryBalance(), feeOn(10 * ONE_USDC) + 1_100_000 + feeOn(ONE_USDC));
         assertSolvent();
 
         vm.prank(bob);
@@ -158,8 +159,9 @@ contract SafetyTest is DailyDrawBase {
         uint256 bobBefore = usdc.balanceOf(bob);
         uint256 carolBefore = usdc.balanceOf(carol);
 
+        uint256 ticket = ONE_USDC + feeOn(ONE_USDC); // price + fee
         vm.expectEmit(true, true, false, true);
-        emit DailyDraw.Refunded(drawId, alice, 6, 6_600_000);
+        emit DailyDraw.Refunded(drawId, alice, 6, 6 * ticket);
         vm.prank(alice);
         game.refund(drawId, many(30, 0)); // everything from 00 to 29: holds 07 and 20..24
         assertSolvent();
@@ -174,9 +176,9 @@ contract SafetyTest is DailyDrawBase {
         game.refund(drawId, nums(99));
         assertSolvent();
 
-        assertEq(usdc.balanceOf(alice) - aliceBefore, 6_600_000);
-        assertEq(usdc.balanceOf(bob) - bobBefore, 11 * ONE_USDC);
-        assertEq(usdc.balanceOf(carol) - carolBefore, 2_200_000);
+        assertEq(usdc.balanceOf(alice) - aliceBefore, 6 * ticket);
+        assertEq(usdc.balanceOf(bob) - bobBefore, 10 * ticket);
+        assertEq(usdc.balanceOf(carol) - carolBefore, 2 * ticket);
         // Every wallet is back where it started.
         assertEq(usdc.balanceOf(alice), 1_000 * ONE_USDC);
         assertEq(usdc.balanceOf(bob), 1_000 * ONE_USDC);
@@ -204,7 +206,7 @@ contract SafetyTest is DailyDrawBase {
         uint256 before = usdc.balanceOf(alice);
         vm.prank(alice);
         game.refund(drawId, twice);
-        assertEq(usdc.balanceOf(alice) - before, 1_100_000);
+        assertEq(usdc.balanceOf(alice) - before, ONE_USDC + feeOn(ONE_USDC));
 
         vm.prank(alice);
         vm.expectRevert(DailyDraw.NothingToRefund.selector);
@@ -240,7 +242,7 @@ contract SafetyTest is DailyDrawBase {
 
     function test_RejectsParamsWhoseFeeRounds() public {
         DailyDraw.Params memory p = defaultParams();
-        p.ticketPrice = 1_000_001; // 10% of it isn't a whole unit
+        p.ticketPrice = 1_000_001; // 2% of it isn't a whole unit
         vm.prank(admin);
         vm.expectRevert(DailyDraw.InvalidParams.selector);
         game.setParams(p);

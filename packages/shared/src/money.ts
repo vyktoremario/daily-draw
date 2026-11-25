@@ -44,7 +44,7 @@ export function usdc(amount: number | bigint): bigint {
   return BigInt(amount) * USDC_UNITS;
 }
 
-/** Format USDC base units as dollars: 1_100_000n -> "$1.10", 1_234_567n -> "$1.234567". */
+/** Format USDC base units as dollars: 1_020_000n -> "$1.02", 1_234_567n -> "$1.234567". */
 export function formatUsdc(units: bigint): string {
   const negative = units < 0n;
   const abs = negative ? -units : units;

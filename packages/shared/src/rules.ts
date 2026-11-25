@@ -29,7 +29,7 @@ export const DEFAULT_SPLIT: PoolSplit = {
 export interface GameRules {
   currency: Currency;
   ticketPrice: bigint;
-  /** Fee added on top of each ticket, in basis points (1000 = 10%). Not part of the pool. */
+  /** Fee added on top of each ticket, in basis points (200 = 2%). Not part of the pool. */
   ticketFeeBps: number;
   /** Allowed ticket counts in one purchase. */
   bundleSizes: readonly number[];
@@ -50,7 +50,7 @@ export interface GameRules {
 }
 
 const COMMON = {
-  ticketFeeBps: 1000,
+  ticketFeeBps: 200,
   bundleSizes: [1, 2, 5, 10],
   numberRange: 100,
   split: DEFAULT_SPLIT,
@@ -96,7 +96,7 @@ export function ticketCost(rules: GameRules, count: number): TicketCost {
   return { price, fee, total: price + fee };
 }
 
-/** Format an amount in the rules' currency, e.g. "$1.10" or "₦110". */
+/** Format an amount in the rules' currency, e.g. "$1.02" or "₦102". */
 export function formatAmount(amount: bigint, rules: Pick<GameRules, 'currency'>): string {
   return rules.currency === 'USDC' ? formatUsdc(amount) : formatNaira(amount);
 }

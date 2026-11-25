@@ -28,10 +28,12 @@ import {
   RULES,
   availableBundles,
   bundleCost,
+  formatFee,
   groupNumbers,
   isComplete,
   luckyDip,
   placeNumber,
+  pricingOf,
   resizeSlip,
   type Slip,
 } from '../../lib/tickets';
@@ -105,7 +107,10 @@ function Picker({ onBought }: { onBought: (b: Bought) => void }) {
     }
   }, [bundles, isConnected, size]);
 
-  const cost = bundleCost(size);
+  // Price and fee come from the open draw itself (it copied the contract's params when it opened),
+  // so the total shown and the USDC approved are what `buyTickets` pulls.
+  const pricing = pricingOf(current);
+  const cost = bundleCost(size, pricing);
   const referrer = address ? referrerForPurchase(savedRef, address, lastPlayed > 0n) : zeroAddress;
   const salesOpen = !!current && current.status === DrawStatus.Open && Number(current.cutoff) > now;
   const complete = isComplete(slip);
@@ -134,7 +139,7 @@ function Picker({ onBought }: { onBought: (b: Bought) => void }) {
   const buy = async () => {
     if (!complete || currentId === undefined || !current) return;
     const numbers = slip as number[];
-    const total = cost.total;
+    const total = bundleCost(size, pricingOf(current)).total;
     const hash = await tx.run(async (step) => {
       if (allowance < total) {
         await step('Approving USDC', () =>
@@ -285,7 +290,7 @@ function Picker({ onBought }: { onBought: (b: Bought) => void }) {
       <div className="summary">
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
           <span className="muted">
-            {size} × {formatUsdc(RULES.ticketPrice)} + 10% fee ({formatUsdc(cost.fee)})
+            {`${size} × ${formatUsdc(pricing.ticketPrice)} + ${formatFee(pricing.feeBps)} fee (${formatUsdc(cost.fee)})`}
           </span>
           <strong data-testid="total">{formatUsdc(cost.total)}</strong>
         </div>

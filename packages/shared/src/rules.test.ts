@@ -27,7 +27,7 @@ describe('draw numbers', () => {
 });
 
 describe('rules', () => {
-  it('uses the agreed 65/15/20 split, 10% fee and 00-99', () => {
+  it('uses the agreed 65/15/20 split, 2% fee and 00-99', () => {
     expect(DEFAULT_SPLIT).toEqual({
       winnersBps: 6500,
       teamBps: 1000,
@@ -36,7 +36,7 @@ describe('rules', () => {
     });
     expect(() => assertValidSplit(DEFAULT_SPLIT)).not.toThrow();
     for (const rules of [ONCHAIN_RULES, NAIRA_RULES]) {
-      expect(rules.ticketFeeBps).toBe(1000);
+      expect(rules.ticketFeeBps).toBe(200);
       expect(rules.numberRange).toBe(100);
       expect(rules.bundleSizes).toEqual([1, 2, 5, 10]);
     }
@@ -51,17 +51,35 @@ describe('rules', () => {
 });
 
 describe('ticketCost', () => {
-  it('adds the 10% fee on top of the price', () => {
+  it('adds the 2% fee on top of the price', () => {
     expect(ticketCost(ONCHAIN_RULES, 1)).toEqual({
       price: usdc(1),
-      fee: 100_000n,
-      total: 1_100_000n,
+      fee: 20_000n,
+      total: 1_020_000n,
+    });
+    expect(ticketCost(NAIRA_RULES, 1)).toEqual({
+      price: naira(100),
+      fee: naira(2),
+      total: naira(102),
     });
     expect(ticketCost(NAIRA_RULES, 10)).toEqual({
       price: naira(1_000),
-      fee: naira(100),
-      total: naira(1_100),
+      fee: naira(20),
+      total: naira(1_020),
     });
+  });
+
+  it('keeps a whole fee for every bundle size', () => {
+    for (const rules of [ONCHAIN_RULES, NAIRA_RULES]) {
+      const one = ticketCost(rules, 1);
+      for (const n of rules.bundleSizes) {
+        expect(ticketCost(rules, n).fee).toBe(one.fee * BigInt(n));
+      }
+    }
+  });
+
+  it('follows the fee setting', () => {
+    expect(ticketCost({ ...ONCHAIN_RULES, ticketFeeBps: 1000 }, 1).total).toBe(1_100_000n);
   });
 
   it('only sells the agreed bundles', () => {
@@ -72,10 +90,10 @@ describe('ticketCost', () => {
 
 describe('formatting', () => {
   it('formats USDC and naira', () => {
-    expect(formatUsdc(1_100_000n)).toBe('$1.10');
+    expect(formatUsdc(1_020_000n)).toBe('$1.02');
     expect(formatUsdc(usdc(1_234))).toBe('$1,234.00');
     expect(formatUsdc(1_234_567n)).toBe('$1.234567');
     expect(formatAmount(usdc(65), ONCHAIN_RULES)).toBe('$65.00');
-    expect(formatAmount(naira(110), NAIRA_RULES)).toBe(formatNaira(naira(110)));
+    expect(formatAmount(naira(102), NAIRA_RULES)).toBe(formatNaira(naira(102)));
   });
 });
