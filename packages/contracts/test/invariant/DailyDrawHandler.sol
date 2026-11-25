@@ -311,7 +311,7 @@ contract DailyDrawHandler is CommonBase, StdCheats, StdUtils {
             referrerActiveDays: uint16([30, 1][(seed >> 32) % 2]),
             unclaimedPrizeDays: uint16([30, 1][(seed >> 40) % 2])
         });
-        if (p.ticketPrice % 10 == 0) p.feeBps = uint16([1_000, 2_000, 0][(seed >> 48) % 3]);
+        if (p.ticketPrice % 10 == 0) p.feeBps = uint16([200, 1_000, 2_000, 0][(seed >> 48) % 4]);
         if ((seed >> 56) % 3 == 1) {
             (p.winnersBps, p.teamBps, p.buybackBps, p.referrersBps) = (7_000, 1_000, 0, 2_000);
         } else if ((seed >> 56) % 3 == 2) {

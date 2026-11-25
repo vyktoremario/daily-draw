@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+  DEFAULT_PRICING,
   availableBundles,
   bundleCost,
+  formatFee,
+  priceLine,
+  pricingOf,
   groupNumbers,
   isComplete,
   luckyDip,
@@ -10,11 +14,33 @@ import {
 } from './tickets';
 
 describe('bundles and fee', () => {
-  it('prices each bundle at $1 a ticket plus a 10% fee', () => {
-    expect(bundleCost(1)).toEqual({ price: 1_000_000n, fee: 100_000n, total: 1_100_000n });
-    expect(bundleCost(2).total).toBe(2_200_000n);
-    expect(bundleCost(5).total).toBe(5_500_000n);
-    expect(bundleCost(10)).toEqual({ price: 10_000_000n, fee: 1_000_000n, total: 11_000_000n });
+  it('defaults to $1 a ticket plus a 2% fee', () => {
+    expect(DEFAULT_PRICING).toEqual({ ticketPrice: 1_000_000n, feeBps: 200 });
+    expect(bundleCost(1)).toEqual({ price: 1_000_000n, fee: 20_000n, total: 1_020_000n });
+    expect(bundleCost(2).total).toBe(2_040_000n);
+    expect(bundleCost(5).total).toBe(5_100_000n);
+    expect(bundleCost(10)).toEqual({ price: 10_000_000n, fee: 200_000n, total: 10_200_000n });
+  });
+
+  it("charges the open draw's own price and fee", () => {
+    // A draw opened before the fee change (#44) keeps 10%.
+    const tenPct = { params: { ticketPrice: 1_000_000n, feeBps: 1000, numberRange: 100 } };
+    expect(pricingOf(tenPct)).toEqual({ ticketPrice: 1_000_000n, feeBps: 1000 });
+    expect(bundleCost(1, pricingOf(tenPct)).total).toBe(1_100_000n);
+    expect(bundleCost(10, pricingOf(tenPct)).total).toBe(11_000_000n);
+    expect(bundleCost(5, { ticketPrice: 2_000_000n, feeBps: 250 })).toEqual({
+      price: 10_000_000n,
+      fee: 250_000n,
+      total: 10_250_000n,
+    });
+    expect(pricingOf(undefined)).toBe(DEFAULT_PRICING); // still loading
+  });
+
+  it('describes the price', () => {
+    expect(priceLine(DEFAULT_PRICING)).toBe('$1 a ticket + 2% fee');
+    expect(priceLine({ ticketPrice: 1_000_000n, feeBps: 1000 })).toBe('$1 a ticket + 10% fee');
+    expect(priceLine({ ticketPrice: 1_500_000n, feeBps: 250 })).toBe('$1.50 a ticket + 2.5% fee');
+    expect(formatFee(0)).toBe('0%');
   });
 
   it('rejects sizes that are not bundles', () => {

@@ -23,11 +23,13 @@ abstract contract DailyDrawBase is Test {
     uint64 internal constant START = 1_800_000_000;
     uint64 internal firstCutoff = START + 12 hours;
     uint256 internal constant ONE_USDC = 1_000_000;
+    /// @dev The fee in `defaultParams` (2%). Expected amounts are derived from it via `feeOn`.
+    uint16 internal constant FEE_BPS = 200;
 
     function defaultParams() internal pure returns (DailyDraw.Params memory) {
         return DailyDraw.Params({
             ticketPrice: uint128(ONE_USDC),
-            feeBps: 1_000,
+            feeBps: FEE_BPS,
             numberRange: 100,
             winnersBps: 6_500,
             teamBps: 1_000,
@@ -38,6 +40,11 @@ abstract contract DailyDrawBase is Test {
             referrerActiveDays: 30,
             unclaimedPrizeDays: 30
         });
+    }
+
+    /// @dev The fee charged on top of `price` at the default fee.
+    function feeOn(uint256 price) internal pure returns (uint256) {
+        return price * FEE_BPS / 10_000;
     }
 
     function setUp() public virtual {

@@ -8,7 +8,8 @@ product for Nigerian players follows later.
 
 - One pool and one draw a day at 9:00pm WAT. Tickets cost $1 in USDC (₦100 for the later naira
   product), bought singly or in bundles of 2, 5 or 10. Players pick numbers from 00 to 99.
-- A 10% fee is added to each ticket (proposed).
+- A 2% fee is added on top of each ticket: players pay $1.02 (₦102); the full $1 goes into the
+  pool and the 2c fee to the company.
 - When someone wins, the pool is split **65% to winners**, **15% to the company** (10% team,
   5% to buy back and burn the project's token) and **20% to the winners' referrers**. A winner's
   referral share goes to the company if they had no active referrer.

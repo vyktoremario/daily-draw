@@ -44,11 +44,13 @@ contract DailyDrawTest is DailyDrawBase {
         uint256 before = usdc.balanceOf(alice);
         buy(alice, nums(42), address(0));
 
-        assertEq(before - usdc.balanceOf(alice), 1_100_000); // $1 + 10% fee
-        assertEq(usdc.balanceOf(address(game)), 1_100_000);
+        assertEq(feeOn(ONE_USDC), 20_000); // the default: 2% on top
+        assertEq(before - usdc.balanceOf(alice), ONE_USDC + feeOn(ONE_USDC)); // $1.02
+        assertEq(usdc.balanceOf(address(game)), ONE_USDC + feeOn(ONE_USDC));
         DailyDraw.Draw memory d = game.getDraw(1);
+        assertEq(d.params.feeBps, FEE_BPS);
         assertEq(d.sales, ONE_USDC);
-        assertEq(d.fees, 100_000);
+        assertEq(d.fees, feeOn(ONE_USDC));
         assertEq(d.ticketCount, 1);
         assertEq(game.ticketsPerNumber(1, 42), 1);
         assertEq(game.ticketsOf(1, alice, 42), 1);
@@ -61,8 +63,13 @@ contract DailyDrawTest is DailyDrawBase {
         buy(alice, many(10, 20), address(0));
         assertEq(game.ticketsBoughtBy(1, alice), 17);
         assertEq(game.getDraw(1).sales, 17 * ONE_USDC);
-        (uint256 price, uint256 fee) = game.quote(1, 10);
-        assertEq(price + fee, 11 * ONE_USDC);
+        assertEq(game.getDraw(1).fees, feeOn(17 * ONE_USDC));
+        uint256[4] memory sizes = [uint256(1), 2, 5, 10];
+        for (uint256 i; i < 4; ++i) {
+            (uint256 price, uint256 fee) = game.quote(1, sizes[i]);
+            assertEq(price, sizes[i] * ONE_USDC);
+            assertEq(fee, sizes[i] * feeOn(ONE_USDC)); // $1.02 a ticket in every bundle
+        }
     }
 
     function test_SameNumberTwiceCountsTwice() public {
@@ -222,6 +229,42 @@ contract DailyDrawTest is DailyDrawBase {
         assertEq(game.getDraw(2).params.ticketPrice, 2 * ONE_USDC);
     }
 
+    /// @dev The live testnet's change (#44): a draw opened at 10% keeps charging $1.10 and refunds
+    ///      what was paid, while the next draw charges the new fee. Any whole-unit fee works.
+    function test_FeeChangeAppliesFromTheNextDraw() public {
+        // Start like the live draw #1: opened with a 10% fee.
+        DailyDraw.Params memory p = defaultParams();
+        p.feeBps = 1_000;
+        vm.prank(admin);
+        game.setParams(p);
+        uint256 tenPct = closeAndDraw(0) + 1;
+        assertEq(game.getDraw(tenPct).params.feeBps, 1_000);
+
+        uint256 before = usdc.balanceOf(alice);
+        buy(alice, many(10, 1), address(0));
+        assertEq(before - usdc.balanceOf(alice), 11 * ONE_USDC); // $1.10 a ticket
+
+        p.feeBps = 200;
+        vm.prank(admin);
+        game.setParams(p);
+        (uint256 price, uint256 fee) = game.quote(tenPct, 1);
+        assertEq(price + fee, 1_100_000); // the open draw keeps its fee
+        before = usdc.balanceOf(bob);
+        buy(bob, nums(5), address(0));
+        assertEq(before - usdc.balanceOf(bob), 1_100_000);
+        assertEq(game.getDraw(tenPct).fees, 1_100_000);
+
+        uint256 twoPct = closeAndDraw(0) + 1;
+        (price, fee) = game.quote(twoPct, 10);
+        assertEq(price + fee, 10_200_000); // $1.02 a ticket
+        before = usdc.balanceOf(bob);
+        buy(bob, many(10, 1), address(0));
+        assertEq(before - usdc.balanceOf(bob), 10_200_000);
+        assertEq(game.getDraw(twoPct).params.feeBps, 200);
+        assertEq(game.getDraw(twoPct).fees, 200_000);
+        assertSolvent();
+    }
+
     function test_OnlyRolesCanAdminister() public {
         bytes32 paramsRole = game.PARAMS_ROLE();
         bytes32 upgraderRole = game.UPGRADER_ROLE();
@@ -263,7 +306,8 @@ contract DailyDrawTest is DailyDrawBase {
         buy(alice, many(count, start), address(0));
         DailyDraw.Draw memory d = game.getDraw(1);
         assertEq(usdc.balanceOf(address(game)), uint256(d.sales) + d.fees);
-        assertEq(d.fees, d.sales / 10);
+        assertEq(d.fees, feeOn(d.sales));
+        assertEq(d.fees, count * feeOn(ONE_USDC));
         assertEq(d.ticketCount, count);
     }
 }

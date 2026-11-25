@@ -10,7 +10,7 @@ describe('DrawsService.rules', () => {
     expect(rules.currency).toBe('NGN');
     expect(rules.ticketPrice).toBe('10000');
     expect(rules.ticketPriceLabel).toBe('₦100');
-    expect(rules.ticketFeeBps).toBe(1000);
+    expect(rules.ticketFeeBps).toBe(200);
     expect(rules.split).toEqual({
       winnersBps: 6500,
       teamBps: 1000,

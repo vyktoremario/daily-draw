@@ -100,12 +100,12 @@ contract DeployDailyDraw is Script {
         return DailyDraw(address(new ERC1967Proxy(address(impl), init)));
     }
 
-    /// @notice Product rules (Design v0.2): $1 + 10% fee, 00-99, 65/10/5/20, 20 tickets per wallet,
+    /// @notice Product rules (Design v0.2): $1 + 2% fee, 00-99, 65/10/5/20, 20 tickets per wallet,
     ///         one draw a day, referrers active within 30 days, 30 days to claim.
     function defaultParams() public pure returns (DailyDraw.Params memory) {
         return DailyDraw.Params({
             ticketPrice: 1_000_000,
-            feeBps: 1_000,
+            feeBps: 200,
             numberRange: 100,
             winnersBps: 6_500,
             teamBps: 1_000,

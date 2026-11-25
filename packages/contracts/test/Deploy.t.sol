@@ -80,6 +80,9 @@ contract DeployTest is Test {
         assertEq(address(game.usdc()), address(usdc));
         assertEq(game.treasury(), treasury);
         assertEq(game.getDraw(1).params.unclaimedPrizeDays, 30);
+        assertEq(game.getDraw(1).params.feeBps, 200); // 2% on top: $1.02 a ticket
+        (uint256 price, uint256 fee) = game.quote(1, 1);
+        assertEq(price + fee, 1_020_000);
     }
 
     function test_ParamsChangeOnlyThroughTheTimelockAfter48Hours() public {

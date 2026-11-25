@@ -1,4 +1,10 @@
-import { ONCHAIN_RULES, ticketCost, type GameRules } from '@daily-draw/shared';
+import {
+  ONCHAIN_RULES,
+  formatUsdc,
+  ticketCost,
+  type GameRules,
+  type TicketCost,
+} from '@daily-draw/shared';
 
 /** A ticket slip: one slot per ticket in the bundle, `null` until a number is picked. */
 export type Slip = (number | null)[];
@@ -46,7 +52,46 @@ export function groupNumbers(numbers: readonly number[]): { number: number; coun
   return [...groups].map(([number, count]) => ({ number, count }));
 }
 
-/** Price, fee and total for a bundle, in USDC base units. */
-export function bundleCost(count: number, rules: GameRules = RULES) {
-  return ticketCost(rules, count);
+/**
+ * What a draw charges per ticket. Each draw copies the contract's params when it opens, so the
+ * open draw's `params` (from `getDraw`) are what `buyTickets` will pull for it.
+ */
+export interface Pricing {
+  ticketPrice: bigint;
+  feeBps: number;
+}
+
+/** The product rules ($1 + 2%), used only until the open draw has loaded. */
+export const DEFAULT_PRICING: Pricing = {
+  ticketPrice: RULES.ticketPrice,
+  feeBps: RULES.ticketFeeBps,
+};
+
+/** The open draw's pricing, or the default while it loads. */
+export function pricingOf(draw: { params: Pricing } | undefined): Pricing {
+  return draw
+    ? { ticketPrice: draw.params.ticketPrice, feeBps: draw.params.feeBps }
+    : DEFAULT_PRICING;
+}
+
+/**
+ * Price, fee and total for a bundle, in USDC base units. Same maths as `DailyDraw.quote`:
+ * price = ticket price × count, fee = price × feeBps / 10000.
+ */
+export function bundleCost(count: number, pricing: Pricing = DEFAULT_PRICING): TicketCost {
+  return ticketCost(
+    { ...RULES, ticketPrice: pricing.ticketPrice, ticketFeeBps: pricing.feeBps },
+    count,
+  );
+}
+
+/** Basis points as a percentage: 200 -> "2%", 250 -> "2.5%". */
+export function formatFee(feeBps: number): string {
+  return `${feeBps / 100}%`;
+}
+
+/** "$1 a ticket + 2% fee" (whole dollars without cents). */
+export function priceLine(pricing: Pricing): string {
+  const price = formatUsdc(pricing.ticketPrice).replace(/\.00$/, '');
+  return `${price} a ticket + ${formatFee(pricing.feeBps)} fee`;
 }

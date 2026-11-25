@@ -7,8 +7,9 @@ which picks a local Foundry install or falls back to Docker).
 
 - `DailyDraw.sol`: the on-chain game (R1). Upgradeable (UUPS) behind an ERC-1967 proxy.
   - Done (#25): daily draws with their own copy of the params, ticket bundles of 1, 2, 5 or 10,
-    10% fee held with the draw, per-wallet limit, referrer set once on first play, cutoff,
-    `closeDraw` (anyone, after the cutoff) and `fulfillRandomness` (randomness provider only).
+    fee held with the draw (`feeBps`, 2% by default since #44: $1.02 a ticket), per-wallet
+    limit, referrer set once on first play, cutoff, `closeDraw` (anyone, after the cutoff) and
+    `fulfillRandomness` (randomness provider only).
   - Done (#26): settlement in the randomness callback. Pool = sales (fees excluded) + the
     contract-level `rollover`. No winner: the whole pool rolls over. Otherwise each winning ticket
     gets 65% / winners as its prize and 20% / winners as its referral share; 10% plus the draw's
@@ -49,6 +50,9 @@ which picks a local Foundry install or falls back to Docker).
 - `script/DeployLocal.s.sol`: DevUSDC + DevRandomness + `DeployDailyDraw` with the deployer in every
   role, first cutoff the next 8:45pm WAT, $1,000 test USDC to Anvil accounts 1-5. Writes
   `deployments/<chainId>.json` (git-ignored). Run through `pnpm dev:chain` (root README).
+- `script/SetFee.s.sol`: changes the live `feeBps` (default 200 = 2%) through the timelock,
+  keeping every other param as it is: `schedule()`, then `execute()` after the delay, `status()`
+  to look. Run through `pnpm testnet:set-fee` (docs/testnet-runbook.md, "Changing the ticket fee").
 
 ## TypeScript
 

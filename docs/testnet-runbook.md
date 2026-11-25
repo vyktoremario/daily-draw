@@ -269,7 +269,40 @@ pnpm --filter @daily-draw/web dev
 and open http://localhost:3000. (This replaces `apps/web/.env.local`; run `pnpm dev:chain` to go
 back to the local chain.)
 
-## Step 9b (optional). Host the admin dashboard
+## Step 9b. Turn on the gas drip (free test ETH for new players)
+
+Every transaction on Base Sepolia, even **Get $100 test USDC**, costs a little test ETH in gas. A
+new player's wallet has none, so the web app can send each new wallet about 0.0005 test ETH (enough for dozens of transactions) from a
+**drip wallet** (`POST /api/drip`, a Vercel function). Without this step the app still works, but
+players with no ETH are told to ask the person who invited them.
+
+Limits built in: only wallets holding less than 0.0001 ETH, once per wallet address, at most 5
+requests per IP address and 0.01 ETH in total per day (UTC), and never on a mainnet. If the drip
+wallet or the database is unavailable, the drip refuses; it never sends without its limits.
+
+1. **Create the drip wallet.** In MetaMask: account menu → **Add account** → name it **Drip**. It
+   is a new testnet-only wallet; never use the Admin, Deployer or Keeper here, and never send it
+   mainnet funds.
+2. **Fund it.** Send it about **0.02 Base Sepolia ETH** (40 drips) from one of your accounts or a
+   faucet (step 10 lists two).
+3. **Add a database for the limits.** Vercel → your project → **Storage** → **Create Database**
+   → **Upstash** (Marketplace) → **Upstash for Redis**. Pick the free plan and the region closest
+   to your functions (Washington, D.C. / `iad1` unless you changed it), and connect it to the
+   project for all environments. Vercel adds `KV_REST_API_URL` and `KV_REST_API_TOKEN` (and a
+   few other `KV_*` / `REDIS_URL` variables the app ignores).
+4. **Add the drip wallet's key.** MetaMask → Drip account → ⋮ → **Account details** → **Show
+   private key**. Copy it straight into Vercel → **Settings** → **Environment Variables** as
+   `DRIP_PRIVATE_KEY` (tick **Sensitive**; no `NEXT_PUBLIC_` prefix, so it stays on the server).
+   Don't paste it anywhere else.
+5. Optional, to change the limits: `DRIP_AMOUNT_ETH` (0.0005), `DRIP_MIN_BALANCE_ETH` (0.0001),
+   `DRIP_DAILY_CAP_ETH` (0.01), `DRIP_PER_IP_DAILY` (5). `DRIP_RPC_URL` overrides the RPC the
+   drip uses (defaults to `NEXT_PUBLIC_RPC_URL`).
+6. **Redeploy** (Deployments → ⋯ on the latest → **Redeploy**).
+7. **Check it:** open `https://<your-site>/api/drip`. It shows `"available": true`, the drip
+   wallet's address and its balance in wei (`dripBalanceWei`; 20000000000000000 = 0.02 ETH).
+   `"available": false` means the key or database is missing, or the wallet is nearly empty.
+
+## Step 9c (optional). Host the admin dashboard
 
 A read-only page for the founders: today's draw, past draws, money held vs owed, keeper and VRF
 health, pending timelock changes, players. It needs no addresses: it reads
@@ -278,15 +311,17 @@ health, pending timelock changes, players. It needs no addresses: it reads
 1. [vercel.com/new](https://vercel.com/new) → import the same repository again as a **second
    project**. **Root Directory**: `apps/admin`.
 2. Environment variables: `ADMIN_USER`, `ADMIN_PASSWORD` (long and random) and
-   `DEPLOYMENT=base-sepolia`. Add `DRIP_WALLET_ADDRESS` when the gas drip has a wallet.
+   `DEPLOYMENT=base-sepolia`. Add `DRIP_WALLET_ADDRESS` (the drip wallet from step 9b) so it can warn when the drip runs low.
 3. Deploy, open the address and log in with that user name and password.
 
 Details, optional settings and running it locally: `apps/admin/README.md`.
 
 ## Step 10. Smoke test
 
-Use a separate MetaMask account as a "player" (not Admin, Deployer or Keeper) with a little Base
-Sepolia ETH for fees. Free test ETH:
+Use a separate MetaMask account as a "player" (not Admin, Deployer, Keeper or Drip). With the gas
+drip on (step 9b), start it with **no** ETH: the Wallet screen should send it test ETH by itself
+and then unlock **Get $100 test USDC**. Without the drip, give it a little Base Sepolia ETH for
+fees. Free test ETH:
 [Coinbase faucet](https://portal.cdp.coinbase.com/products/faucet) or
 [Alchemy faucet](https://www.alchemy.com/faucets/base-sepolia).
 
@@ -314,10 +349,82 @@ Sepolia ETH for fees. Free test ETH:
 
 - **Nothing to do daily**: the keeper closes draws and Chainlink answers.
 - **Weekly**: check the LINK balance at vrf.chain.link and the Keeper's ETH (the keeper warns in
-  its log when it drops below 0.001 ETH). The admin dashboard (step 9b) shows both, with warnings.
+  its log when it drops below 0.001 ETH), and the drip wallet's balance at `/api/drip` (each
+  drip is also logged in Vercel → **Logs**, search `drip:`). Top it up when it runs low. The admin dashboard (step 9c) shows all three, with warnings.
 - **Changing a setting or upgrading** goes through the timelock: the Admin wallet schedules it,
-  waits `TIMELOCK_DELAY` (1 hour), then executes it. Pausing is immediate: BaseScan → DailyDraw →
-  **Contract** → **Write as Proxy** → connect Admin → `pause`.
+  waits `TIMELOCK_DELAY` (1 hour), then executes it. The ticket fee has its own command (next
+  section). Pausing is immediate: BaseScan → DailyDraw → **Contract** → **Write as Proxy** →
+  connect Admin → `pause`.
+
+## Changing the ticket fee (10% → 2%)
+
+The fee is 2% on top of the $1 price: players pay **$1.02** a ticket and the whole $1 goes into
+the pool. Deployments from now on start at 2%. The game deployed before that change charges 10%
+($1.10) until the Admin changes its `feeBps` setting from 1000 to 200, which goes through the
+timelock: schedule it, wait 1 hour, execute it. No redeploy, and nothing else changes.
+
+Each draw copies the settings when it opens, so **the draw that is open when the change executes
+keeps $1.10** (its players paid $1.10 and refunds return exactly that). The first draw to charge
+$1.02 is the one that opens after the next 8:45pm WAT close.
+
+Order: change the contract first, then deploy the web app with the 2% code. The web app reads the
+price and fee from the open draw itself, so it shows $1.10 until that draw closes and $1.02 after,
+whichever is deployed first; but the contract change has to happen for the price to drop.
+
+**1. Put the Admin key in `.env` (only for this).** MetaMask → switch to **Admin** → account menu
+(⋮) → **Account details** → **Show private key** → copy, and paste it after `ADMIN_PRIVATE_KEY=`
+in `.env` (add the line if your `.env` is older than this section). Never paste it anywhere else.
+
+**2. Look first (sends nothing):**
+
+```bash
+pnpm testnet:set-fee status
+```
+
+It shows the open draw's fee (`1000 bps`), the live setting (`1000 bps -> new fee: 200 bps`) and
+`Not scheduled yet`.
+
+**3. Rehearse, then schedule.** The dry run simulates against Base Sepolia and sends nothing:
+
+```bash
+pnpm testnet:set-fee schedule --dry-run
+```
+
+```bash
+pnpm testnet:set-fee schedule
+```
+
+Success looks like `Scheduled: setParams with feeBps 200`, then
+`ONCHAIN EXECUTION COMPLETE & SUCCESSFUL`. Nothing changes for players yet.
+
+**4. Wait 1 hour.** `pnpm testnet:set-fee status` says `Scheduled, waiting: executable from unix
+time ...` until then, and `Scheduled and ready` after. Running `execute` too early fails with
+`NotReadyYet` and changes nothing; just run it again later.
+
+**5. Execute:**
+
+```bash
+pnpm testnet:set-fee execute
+```
+
+Success looks like `Executed: the live feeBps is now 200.` Then remove the key from `.env` again
+(leave `ADMIN_PRIVATE_KEY=` empty).
+
+**6. Check.** `pnpm testnet:set-fee status` now says `The live fee is already 200 bps`. Then:
+
+- Before the next 8:45pm WAT: the open draw still charges $1.10 (home button "Play for $1.10").
+- After the keeper closes that draw, the new draw charges $1.02. On
+  https://daily-draw-lake.vercel.app the home button says **Play for $1.02** and the line under it
+  **$1 a ticket + 2% fee**. Buy 1, 2, 5 and 10 tickets with a player wallet: MetaMask's approval
+  asks for $1.02, $2.04, $5.10 and $10.20, and **Wallet** → Ticket purchases lists the same.
+- On BaseScan → DailyDraw → **Read as Proxy**: `params` shows `feeBps` 200, and
+  `quote(<new draw id>, 1)` returns `1000000` and `20000`.
+
+Messages you might see: `FeeAlreadySet(200)` (already done: nothing to do), `AlreadyScheduled`
+(step 3 already ran: wait and execute), `NotScheduled` (run step 3 first),
+`NotTheTimelockAdmin` (`ADMIN_PRIVATE_KEY` is another wallet's key). For a different fee add
+`--fee=<bps>` to every command, e.g. `--fee=250` for 2.5% (at most 2000, and it must give a whole
+number of USDC units per ticket).
 
 ## When something goes wrong
 
@@ -329,6 +436,7 @@ Sepolia ETH for fees. Free test ETH:
 | Keeper warning: `keeper balance is low`                        | Send the Keeper some Base Sepolia ETH.                                                                                                                                                                                                                                 |
 | Keeper run says `No base-sepolia deployment committed yet`     | `packages/contracts/deployments/base-sepolia.json` isn't on `main` yet (step 8).                                                                                                                                                                                       |
 | Web app: tickets or referrals don't load                       | Check `NEXT_PUBLIC_RPC_URL` in Vercel (step 9) and redeploy.                                                                                                                                                                                                           |
+| Players see “ask the person who invited you for test ETH”      | The drip is off or refused. Open `/api/drip`: `available: false` means `DRIP_PRIVATE_KEY` or the Upstash variables are missing (step 9b) or the drip wallet is low; top it up. Vercel → **Logs** (search `drip:`) shows daily-cap and failure lines.                   |
 | `pnpm testnet:deploy`: `Missing in .env: ...`                  | Fill in the named variables.                                                                                                                                                                                                                                           |
 | `pnpm testnet:deploy`: insufficient funds                      | The Deployer needs more Base Sepolia ETH.                                                                                                                                                                                                                              |
 
@@ -355,6 +463,8 @@ Nothing is tied to Base Sepolia except configuration:
 | `pnpm testnet:info`                         | Addresses, the VRF consumer to add, and the Vercel variables. |
 | `pnpm keeper` / `pnpm keeper --dry-run`     | One keeper pass from your computer (or just look).            |
 | `pnpm keeper --only=close` / `--only=claim` | Just one of the two tasks.                                    |
+| `pnpm testnet:set-fee status`               | The live ticket fee and any scheduled change. Sends nothing.  |
+| `pnpm testnet:set-fee schedule` / `execute` | Change the ticket fee through the timelock (Admin key).       |
 
 Files: `packages/contracts/script/DeployTestnet.s.sol` (deployment),
 `packages/contracts/src/randomness/ChainlinkVrfProvider.sol` (VRF adapter; the two Chainlink
