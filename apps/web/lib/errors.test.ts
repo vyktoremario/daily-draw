@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   ContractFunctionExecutionError,
   ContractFunctionRevertedError,
+  InternalRpcError,
+  UnknownRpcError,
   UserRejectedRequestError,
   encodeErrorResult,
 } from 'viem';
@@ -41,6 +43,16 @@ describe('friendlyError', () => {
     expect(friendlyError(new UserRejectedRequestError(new Error('User rejected')))).toBe(
       'You cancelled in your wallet.',
     );
+  });
+
+  it('explains missing gas, including MetaMask mobile’s generic error when gas is low', () => {
+    expect(
+      friendlyError(new InternalRpcError(new Error('insufficient funds for gas * price + value'))),
+    ).toMatch(/Not enough gas money/);
+    const generic = new UnknownRpcError(new Error('Internal JSON-RPC error.'));
+    expect(friendlyError(generic)).toBe('An unknown RPC error occurred.');
+    expect(friendlyError(generic, { lowGas: true })).toMatch(/Not enough gas money/);
+    expect(friendlyError(new Error('boom'), { lowGas: true })).toBe('boom');
   });
 
   it('falls back to the error message', () => {

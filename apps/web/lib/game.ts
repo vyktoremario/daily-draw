@@ -7,7 +7,7 @@ import { zeroAddress, type Address, type ContractFunctionReturnType, type Hash }
 import { useBytecode, useConfig, useConnection, usePublicClient, useReadContract } from 'wagmi';
 import { waitForTransactionReceipt } from 'wagmi/actions';
 import { appConfig } from './config';
-import { friendlyError } from './errors';
+import { friendlyError, type ErrorHints } from './errors';
 import { chainClockOffset } from './time';
 
 /** `DailyDraw.Status` */
@@ -210,14 +210,17 @@ export function useTransactions() {
   );
 
   const run = useCallback(
-    async (flow: (s: typeof step) => Promise<Hash | void>): Promise<Hash | false> => {
+    async (
+      flow: (s: typeof step) => Promise<Hash | void>,
+      hints?: ErrorHints,
+    ): Promise<Hash | false> => {
       try {
         const hash = (await flow(step)) ?? undefined;
         setState({ phase: 'done', hash });
         await queryClient.invalidateQueries();
         return hash ?? '0x';
       } catch (error) {
-        setState({ phase: 'error', error: friendlyError(error) });
+        setState({ phase: 'error', error: friendlyError(error, hints) });
         return false;
       }
     },

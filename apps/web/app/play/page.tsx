@@ -8,6 +8,7 @@ import { useConfig, useReadContract } from 'wagmi';
 import { writeContract } from 'wagmi/actions';
 import { AppShell } from '../../components/AppShell';
 import { NumberBadge, Notice, TxNotice, num } from '../../components/ui';
+import { GasDripNotice } from '../../components/GasDrip';
 import { ConnectPrompt } from '../../components/Wallet';
 import { appConfig } from '../../lib/config';
 import {
@@ -294,6 +295,7 @@ function Picker({ onBought }: { onBought: (b: Bought) => void }) {
           </span>
         )}
         <TxNotice state={tx.state} />
+        {isConnected && <GasDripNotice address={address} />}
         {!isConnected ? (
           <ConnectPrompt label="Connect wallet to buy" />
         ) : !salesOpen ? (
