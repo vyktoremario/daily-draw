@@ -63,6 +63,27 @@ export default function DrawPage() {
 
 const SEEN_KEY = (id: bigint) => `dailydraw.revealed.${appConfig.chain.id}.${id}`;
 
+/** The line under the digits: the draw's state, or how far the reveal animation has got. */
+function statusMessage(draw: Draw, phase: 0 | 1 | 2, target: string): string {
+  switch (draw.status) {
+    case DrawStatus.Open:
+      return `Sales are open until ${formatWatTime(draw.cutoff)} WAT. The draw is at ${formatWatTime(drawTime(draw.cutoff))}.`;
+    case DrawStatus.Closed:
+      return 'Sales closed. Waiting for the random number…';
+    case DrawStatus.Voided:
+      return 'This draw was cancelled because no random number arrived. Every ticket can be refunded in full.';
+  }
+  // Drawn, settled or swept: follow the reveal animation.
+  switch (phase) {
+    case 0:
+      return 'Drawing…';
+    case 1:
+      return 'First digit…';
+    case 2:
+      return `The number is ${target}`;
+  }
+}
+
 function DrawView({ drawId, draw }: { drawId: bigint; draw: Draw }) {
   const settled = draw.status === DrawStatus.Settled || draw.status === DrawStatus.Swept;
   const [phase, setPhase] = useState<0 | 1 | 2>(2);
@@ -128,18 +149,7 @@ function DrawView({ drawId, draw }: { drawId: bigint; draw: Draw }) {
   }, [draw.status, settled, drawId, target, play]);
 
   const done = settled && phase === 2;
-  const status =
-    draw.status === DrawStatus.Open
-      ? `Sales are open until ${formatWatTime(draw.cutoff)} WAT. The draw is at ${formatWatTime(drawTime(draw.cutoff))}.`
-      : draw.status === DrawStatus.Closed
-        ? 'Sales closed. Waiting for the random number…'
-        : draw.status === DrawStatus.Voided
-          ? 'This draw was cancelled because no random number arrived. Every ticket can be refunded in full.'
-          : phase === 0
-            ? 'Drawing…'
-            : phase === 1
-              ? 'First digit…'
-              : `The number is ${target}`;
+  const status = statusMessage(draw, phase, target);
 
   return (
     <>
