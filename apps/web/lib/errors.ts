@@ -1,4 +1,10 @@
-import { BaseError, ContractFunctionRevertedError, UserRejectedRequestError } from 'viem';
+import {
+  BaseError,
+  ContractFunctionRevertedError,
+  InternalRpcError,
+  UnknownRpcError,
+  UserRejectedRequestError,
+} from 'viem';
 
 const MESSAGES: Record<string, string> = {
   SalesClosed: 'Sales for this draw have closed. Try tomorrow’s draw.',
@@ -14,8 +20,19 @@ const MESSAGES: Record<string, string> = {
   ERC20InsufficientAllowance: 'USDC approval is too low. Approve again and retry.',
 };
 
-/** A short, human message for a failed wallet or contract call. */
-export function friendlyError(error: unknown): string {
+export const NO_GAS_MESSAGE = 'Not enough gas money (ETH) in your wallet for this network.';
+
+export interface ErrorHints {
+  /** The wallet had too little ETH for gas when the call was made. */
+  lowGas?: boolean;
+}
+
+/**
+ * A short, human message for a failed wallet or contract call. MetaMask mobile reports a
+ * transaction it can't pay gas for as a bare "unknown RPC error"; `hints.lowGas` lets a caller
+ * that knows the balance turn that into the gas message.
+ */
+export function friendlyError(error: unknown, hints: ErrorHints = {}): string {
   if (error instanceof BaseError) {
     if (error.walk((e) => e instanceof UserRejectedRequestError)) {
       return 'You cancelled in your wallet.';
@@ -26,8 +43,14 @@ export function friendlyError(error: unknown): string {
       if (name && MESSAGES[name]) return MESSAGES[name];
       if (name) return `The contract refused: ${name}.`;
     }
-    if (/insufficient funds/i.test(error.message)) {
-      return 'Not enough gas money (ETH) in your wallet for this network.';
+    if (/insufficient funds|exceeds balance|gas required exceeds/i.test(error.message)) {
+      return NO_GAS_MESSAGE;
+    }
+    if (
+      hints.lowGas &&
+      error.walk((e) => e instanceof UnknownRpcError || e instanceof InternalRpcError)
+    ) {
+      return NO_GAS_MESSAGE;
     }
     return error.shortMessage;
   }

@@ -6,6 +6,7 @@ import { formatEther } from 'viem';
 import { useBalance, useConfig, useDisconnect } from 'wagmi';
 import { writeContract } from 'wagmi/actions';
 import { AppShell } from '../../components/AppShell';
+import { GasDrip, useGasDrip } from '../../components/GasDrip';
 import { Notice, TxNotice, num } from '../../components/ui';
 import { ConnectPrompt } from '../../components/Wallet';
 import { appConfig } from '../../lib/config';
@@ -21,14 +22,18 @@ export default function WalletPage() {
   const { mutate: disconnect } = useDisconnect();
   const tx = useTransactions();
   const [copied, setCopied] = useState(false);
+  const drip = useGasDrip(address);
 
   const faucet = () =>
-    tx.run(async (step) => {
-      const r = await step('Getting test USDC', () =>
-        writeContract(config, { ...USDC, functionName: 'faucet', chainId: appConfig.chain.id }),
-      );
-      return r.transactionHash;
-    });
+    tx.run(
+      async (step) => {
+        const r = await step('Getting test USDC', () =>
+          writeContract(config, { ...USDC, functionName: 'faucet', chainId: appConfig.chain.id }),
+        );
+        return r.transactionHash;
+      },
+      { lowGas: drip.low },
+    );
 
   return (
     <AppShell title="Wallet" back="/">
@@ -64,17 +69,18 @@ export default function WalletPage() {
                   type="button"
                   className="btn btn-gold btn-block"
                   onClick={faucet}
-                  disabled={tx.busy || wrongChain}
+                  disabled={tx.busy || wrongChain || drip.noGas}
                 >
                   Get $100 test USDC
                 </button>
-                <TxNotice state={tx.state} />
-                {appConfig.chainKey !== 'anvil' && (
+                {drip.noGas && (
                   <span className="muted" style={{ fontSize: 13 }}>
-                    You also need a little test {appConfig.chain.nativeCurrency.symbol} for network
-                    fees, from a public faucet.
+                    Getting test USDC is a transaction, so it needs a little test{' '}
+                    {appConfig.chain.nativeCurrency.symbol} for network fees first.
                   </span>
                 )}
+                <GasDrip drip={drip} />
+                <TxNotice state={tx.state} />
               </>
             )}
           </section>

@@ -269,10 +269,45 @@ pnpm --filter @daily-draw/web dev
 and open http://localhost:3000. (This replaces `apps/web/.env.local`; run `pnpm dev:chain` to go
 back to the local chain.)
 
+## Step 9b. Turn on the gas drip (free test ETH for new players)
+
+Every transaction on Base Sepolia, even **Get $100 test USDC**, costs a little test ETH in gas. A
+new player's wallet has none, so the web app can send each new wallet about 0.0005 test ETH (enough for dozens of transactions) from a
+**drip wallet** (`POST /api/drip`, a Vercel function). Without this step the app still works, but
+players with no ETH are told to ask the person who invited them.
+
+Limits built in: only wallets holding less than 0.0001 ETH, once per wallet address, at most 5
+requests per IP address and 0.01 ETH in total per day (UTC), and never on a mainnet. If the drip
+wallet or the database is unavailable, the drip refuses; it never sends without its limits.
+
+1. **Create the drip wallet.** In MetaMask: account menu → **Add account** → name it **Drip**. It
+   is a new testnet-only wallet; never use the Admin, Deployer or Keeper here, and never send it
+   mainnet funds.
+2. **Fund it.** Send it about **0.02 Base Sepolia ETH** (40 drips) from one of your accounts or a
+   faucet (step 10 lists two).
+3. **Add a database for the limits.** Vercel → your project → **Storage** → **Create Database**
+   → **Upstash** (Marketplace) → **Upstash for Redis**. Pick the free plan and the region closest
+   to your functions (Washington, D.C. / `iad1` unless you changed it), and connect it to the
+   project for all environments. Vercel adds `KV_REST_API_URL` and `KV_REST_API_TOKEN` (and a
+   few other `KV_*` / `REDIS_URL` variables the app ignores).
+4. **Add the drip wallet's key.** MetaMask → Drip account → ⋮ → **Account details** → **Show
+   private key**. Copy it straight into Vercel → **Settings** → **Environment Variables** as
+   `DRIP_PRIVATE_KEY` (tick **Sensitive**; no `NEXT_PUBLIC_` prefix, so it stays on the server).
+   Don't paste it anywhere else.
+5. Optional, to change the limits: `DRIP_AMOUNT_ETH` (0.0005), `DRIP_MIN_BALANCE_ETH` (0.0001),
+   `DRIP_DAILY_CAP_ETH` (0.01), `DRIP_PER_IP_DAILY` (5). `DRIP_RPC_URL` overrides the RPC the
+   drip uses (defaults to `NEXT_PUBLIC_RPC_URL`).
+6. **Redeploy** (Deployments → ⋯ on the latest → **Redeploy**).
+7. **Check it:** open `https://<your-site>/api/drip`. It shows `"available": true`, the drip
+   wallet's address and its balance in wei (`dripBalanceWei`; 20000000000000000 = 0.02 ETH).
+   `"available": false` means the key or database is missing, or the wallet is nearly empty.
+
 ## Step 10. Smoke test
 
-Use a separate MetaMask account as a "player" (not Admin, Deployer or Keeper) with a little Base
-Sepolia ETH for fees. Free test ETH:
+Use a separate MetaMask account as a "player" (not Admin, Deployer, Keeper or Drip). With the gas
+drip on (step 9b), start it with **no** ETH: the Wallet screen should send it test ETH by itself
+and then unlock **Get $100 test USDC**. Without the drip, give it a little Base Sepolia ETH for
+fees. Free test ETH:
 [Coinbase faucet](https://portal.cdp.coinbase.com/products/faucet) or
 [Alchemy faucet](https://www.alchemy.com/faucets/base-sepolia).
 
@@ -300,7 +335,8 @@ Sepolia ETH for fees. Free test ETH:
 
 - **Nothing to do daily**: the keeper closes draws and Chainlink answers.
 - **Weekly**: check the LINK balance at vrf.chain.link and the Keeper's ETH (the keeper warns in
-  its log when it drops below 0.001 ETH).
+  its log when it drops below 0.001 ETH), and the drip wallet's balance at `/api/drip` (each
+  drip is also logged in Vercel → **Logs**, search `drip:`). Top it up when it runs low.
 - **Changing a setting or upgrading** goes through the timelock: the Admin wallet schedules it,
   waits `TIMELOCK_DELAY` (1 hour), then executes it. Pausing is immediate: BaseScan → DailyDraw →
   **Contract** → **Write as Proxy** → connect Admin → `pause`.
@@ -315,6 +351,7 @@ Sepolia ETH for fees. Free test ETH:
 | Keeper warning: `keeper balance is low`                        | Send the Keeper some Base Sepolia ETH.                                                                                                                                                                                                                                 |
 | Keeper run says `No base-sepolia deployment committed yet`     | `packages/contracts/deployments/base-sepolia.json` isn't on `main` yet (step 8).                                                                                                                                                                                       |
 | Web app: tickets or referrals don't load                       | Check `NEXT_PUBLIC_RPC_URL` in Vercel (step 9) and redeploy.                                                                                                                                                                                                           |
+| Players see “ask the person who invited you for test ETH”      | The drip is off or refused. Open `/api/drip`: `available: false` means `DRIP_PRIVATE_KEY` or the Upstash variables are missing (step 9b) or the drip wallet is low; top it up. Vercel → **Logs** (search `drip:`) shows daily-cap and failure lines.                   |
 | `pnpm testnet:deploy`: `Missing in .env: ...`                  | Fill in the named variables.                                                                                                                                                                                                                                           |
 | `pnpm testnet:deploy`: insufficient funds                      | The Deployer needs more Base Sepolia ETH.                                                                                                                                                                                                                              |
 
