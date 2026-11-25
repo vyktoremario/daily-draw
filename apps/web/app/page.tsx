@@ -15,7 +15,7 @@ import {
   usePurchases,
   type Draw,
 } from '../lib/game';
-import { bundleCost, groupNumbers } from '../lib/tickets';
+import { bundleCost, groupNumbers, priceLine, pricingOf, type Pricing } from '../lib/tickets';
 import { drawTime, formatCountdown, formatWatTime } from '../lib/time';
 
 export default function Home() {
@@ -56,7 +56,10 @@ export default function Home() {
         ) : currentId === undefined || purchases.isLoading ? (
           <p className="muted">Loading…</p>
         ) : (
-          <MyTickets numbers={numbersInDraw(purchases.data, currentId)} />
+          <MyTickets
+            numbers={numbersInDraw(purchases.data, currentId)}
+            pricing={pricingOf(current)}
+          />
         )}
       </section>
 
@@ -80,7 +83,9 @@ function TonightCard({
 }) {
   const left = Number(draw.cutoff) - now;
   const open = draw.status === DrawStatus.Open && left > 0;
-  const withFee = bundleCost(1).total;
+  // The open draw's own price and fee: what buying a ticket in it actually costs.
+  const pricing = pricingOf(draw);
+  const withFee = bundleCost(1, pricing).total;
   return (
     <section className="hero" aria-label="Tonight's draw">
       <div
@@ -113,7 +118,7 @@ function TonightCard({
         </span>
       )}
       <span className="sub" style={{ textAlign: 'center', fontSize: 13 }}>
-        $1 a ticket + 10% fee · winners share 65% of the pool
+        {priceLine(pricing)} · winners share 65% of the pool
       </span>
     </section>
   );
@@ -185,7 +190,7 @@ function LastResult({ draw, drawId }: { draw: Draw; drawId: bigint }) {
   );
 }
 
-function MyTickets({ numbers }: { numbers: number[] }) {
+function MyTickets({ numbers, pricing }: { numbers: number[]; pricing: Pricing }) {
   if (numbers.length === 0) {
     return (
       <div className="card muted" style={{ fontSize: 14 }}>
@@ -196,7 +201,7 @@ function MyTickets({ numbers }: { numbers: number[] }) {
       </div>
     );
   }
-  const price = bundleCost(1).total;
+  const price = bundleCost(1, pricing).total; // what each ticket cost in this draw
   return (
     <div className="list" data-testid="my-tickets">
       {groupNumbers(numbers).map(({ number, count }) => (

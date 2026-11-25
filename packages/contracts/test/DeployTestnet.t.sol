@@ -93,6 +93,8 @@ contract DeployTestnetTest is Test {
         assertEq(game.buybackReserve(), admin);
         assertEq(d.usdc.balanceOf(seed1), 1_000e6);
         assertEq(d.usdc.balanceOf(seed2), 1_000e6);
+        (uint256 price, uint256 fee) = game.quote(1, 1);
+        assertEq(price + fee, 1_020_000); // $1 + 2% fee
     }
 
     function test_FirstCutoffIsTheNext845pmWat() public view {

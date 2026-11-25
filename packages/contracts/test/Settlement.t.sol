@@ -27,7 +27,7 @@ contract SettlementTest is DailyDrawBase {
         assertEq(d.pool, 10 * ONE_USDC);
         assertEq(d.prizePerTicket, 0);
         assertEq(game.rollover(), 10 * ONE_USDC);
-        assertEq(game.treasuryBalance(), ONE_USDC); // only the fees
+        assertEq(game.treasuryBalance(), feeOn(10 * ONE_USDC)); // only the fees
         assertEq(game.buybackBalance(), 0);
         assertSolvent();
 
@@ -52,20 +52,21 @@ contract SettlementTest is DailyDrawBase {
         assertEq(d.prizePerTicket, 10_400_000); // 65%
         assertEq(d.referralSharePerTicket, 3_200_000); // 20%
         assertEq(game.rollover(), 0);
-        // treasury: draw 1 fees (1) + draw 2 team 10% (1.6) + draw 2 fees (0.6)
-        assertEq(game.treasuryBalance(), 3_200_000);
+        // treasury: draw 1 fees (on 10) + draw 2 team 10% (1.6) + draw 2 fees (on 6)
+        uint256 fees = feeOn(10 * ONE_USDC) + feeOn(6 * ONE_USDC);
+        assertEq(game.treasuryBalance(), 1_600_000 + fees);
         assertEq(game.buybackBalance(), 800_000);
         assertSolvent();
 
         uint256 before = usdc.balanceOf(bob);
         claimAs(bob, 2, 42);
         assertEq(usdc.balanceOf(bob) - before, 10_400_000);
-        assertEq(game.treasuryBalance(), 6_400_000); // + unreferred share
+        assertEq(game.treasuryBalance(), 4_800_000 + fees); // + unreferred share
         assertSolvent();
 
         game.withdrawTreasury();
         game.withdrawBuyback();
-        assertEq(usdc.balanceOf(treasury), 6_400_000);
+        assertEq(usdc.balanceOf(treasury), 4_800_000 + fees);
         assertEq(usdc.balanceOf(buyback), 800_000);
         assertEq(game.treasuryBalance(), 0);
         assertSolvent();
@@ -81,7 +82,7 @@ contract SettlementTest is DailyDrawBase {
 
         vm.expectEmit(true, false, false, true);
         emit DailyDraw.DrawSettled(
-            1, 11 * ONE_USDC, 1, 7_150_000, 2_200_000, 1_100_000, 550_000, 1_100_000, 0
+            1, 11 * ONE_USDC, 1, 7_150_000, 2_200_000, 1_100_000, 550_000, feeOn(11 * ONE_USDC), 0
         );
         rng.fulfill(1, 42);
         assertEq(game.getDraw(1).settledAt, firstCutoff);
@@ -143,9 +144,9 @@ contract SettlementTest is DailyDrawBase {
         assertEq(game.referralBalance(alice), 0);
         assertSolvent();
 
-        game.withdrawTreasury(); // 1.6 team + 1.6 fees
+        game.withdrawTreasury(); // 1.6 team + fees on 16
         game.withdrawBuyback(); // 0.8
-        assertEq(usdc.balanceOf(treasury), 3_200_000);
+        assertEq(usdc.balanceOf(treasury), 1_600_000 + feeOn(16 * ONE_USDC));
         assertEq(usdc.balanceOf(buyback), 800_000);
         assertEq(usdc.balanceOf(address(game)), 0);
     }
@@ -360,10 +361,11 @@ contract SettlementTest is DailyDrawBase {
         vm.prank(carol); // anyone may trigger it; the money goes to the current addresses
         game.withdrawTreasury();
         game.withdrawBuyback();
-        assertEq(usdc.balanceOf(newTreasury), 2_200_000); // 1.1 team + 1.1 fees
+        assertEq(usdc.balanceOf(newTreasury), 1_100_000 + feeOn(11 * ONE_USDC)); // team + fees
         assertEq(usdc.balanceOf(newBuyback), 550_000);
         assertEq(usdc.balanceOf(treasury), 0);
-        assertEq(usdc.balanceOf(carol), 1_000 * ONE_USDC - 11 * ONE_USDC); // paid nothing to withdraw
+        // paid nothing to withdraw
+        assertEq(usdc.balanceOf(carol), 1_000 * ONE_USDC - 10 * ONE_USDC - feeOn(10 * ONE_USDC));
 
         bytes32 role = game.DEFAULT_ADMIN_ROLE();
         vm.expectRevert(
@@ -387,25 +389,26 @@ contract SettlementTest is DailyDrawBase {
         uint256 drawId = closeAndDraw(42); // the randomness callback must not revert
 
         assertEq(uint8(game.getDraw(drawId).status), uint8(DailyDraw.Status.Settled));
-        assertEq(game.treasuryBalance(), 2_200_000); // 1.1 team + 1.1 fees
+        uint256 credited = 1_100_000 + feeOn(11 * ONE_USDC); // team + fees
+        assertEq(game.treasuryBalance(), credited);
         assertEq(game.buybackBalance(), 550_000);
 
         // bob can still claim; his unreferred share is credited, not sent.
         claimAs(bob, drawId, 42);
-        assertEq(game.treasuryBalance(), 4_400_000);
+        assertEq(game.treasuryBalance(), credited + 2_200_000);
         assertSolvent();
 
         // Withdrawing to a frozen address fails and keeps the credit.
         vm.expectRevert(abi.encodeWithSelector(MockUSDC.AccountFrozen.selector, treasury));
         game.withdrawTreasury();
-        assertEq(game.treasuryBalance(), 4_400_000);
+        assertEq(game.treasuryBalance(), credited + 2_200_000);
 
         // The admin points the treasury somewhere else and the credit moves there.
         address newTreasury = makeAddr("newTreasury");
         vm.prank(admin);
         game.setTreasury(newTreasury);
         game.withdrawTreasury();
-        assertEq(usdc.balanceOf(newTreasury), 4_400_000);
+        assertEq(usdc.balanceOf(newTreasury), credited + 2_200_000);
         assertSolvent();
     }
 
@@ -414,20 +417,21 @@ contract SettlementTest is DailyDrawBase {
         buy(carol, many(10, 60), address(0)); // pool 11
         vm.warp(firstCutoff);
         game.closeDraw(1);
+        uint256 credited = 1_100_000 + feeOn(11 * ONE_USDC); // team + fees
         vm.expectEmit(true, false, false, true);
-        emit DailyDraw.TreasuryCredited(1, 2_200_000);
+        emit DailyDraw.TreasuryCredited(1, credited);
         vm.expectEmit(true, false, false, true);
         emit DailyDraw.BuybackCredited(1, 550_000);
         rng.fulfill(1, 42);
 
         vm.expectEmit(true, false, false, true);
-        emit DailyDraw.TreasuryWithdrawn(treasury, 2_200_000);
+        emit DailyDraw.TreasuryWithdrawn(treasury, credited);
         game.withdrawTreasury();
         vm.expectEmit(true, false, false, true);
         emit DailyDraw.BuybackWithdrawn(buyback, 550_000);
         game.withdrawBuyback();
 
-        assertEq(usdc.balanceOf(treasury), 2_200_000);
+        assertEq(usdc.balanceOf(treasury), credited);
         assertEq(usdc.balanceOf(buyback), 550_000);
         vm.expectRevert(DailyDraw.NothingToClaim.selector);
         game.withdrawTreasury();

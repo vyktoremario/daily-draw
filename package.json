@@ -24,6 +24,7 @@
     "chain": "pnpm --silent --filter @daily-draw/contracts chain",
     "testnet:deploy": "./scripts/deploy-testnet.sh",
     "testnet:info": "pnpm --silent --filter @daily-draw/contracts testnet:info",
+    "testnet:set-fee": "./scripts/set-fee.sh",
     "keeper": "pnpm --silent --filter @daily-draw/contracts build && pnpm --silent --filter @daily-draw/keeper start"
   },
   "devDependencies": {
