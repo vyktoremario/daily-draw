@@ -21,7 +21,10 @@
     "contracts:abi": "pnpm --filter @daily-draw/contracts abi",
     "contracts:abi:check": "pnpm --filter @daily-draw/contracts abi:check",
     "dev:chain": "pnpm --filter @daily-draw/contracts dev:chain",
-    "chain": "pnpm --silent --filter @daily-draw/contracts chain"
+    "chain": "pnpm --silent --filter @daily-draw/contracts chain",
+    "testnet:deploy": "./scripts/deploy-testnet.sh",
+    "testnet:info": "pnpm --silent --filter @daily-draw/contracts testnet:info",
+    "keeper": "pnpm --silent --filter @daily-draw/contracts build && pnpm --silent --filter @daily-draw/keeper start"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

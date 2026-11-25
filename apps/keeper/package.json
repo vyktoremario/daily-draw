@@ -1,0 +1,22 @@
+{
+  "name": "@daily-draw/keeper",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Keeper bot: closes each draw after its cutoff and claims for winners after 24 hours (viem)",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "tsx --env-file-if-exists=../../.env src/main.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@daily-draw/contracts": "workspace:*",
+    "viem": "^2.58.6"
+  },
+  "devDependencies": {
+    "@daily-draw/config": "workspace:*",
+    "tsx": "^4.23.15",
+    "vitest": "^5.1.1"
+  }
+}

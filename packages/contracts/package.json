@@ -19,7 +19,8 @@
     "abi": "node scripts/abi.mjs",
     "abi:check": "node scripts/abi.mjs --check",
     "dev:chain": "tsx scripts/dev-chain.ts",
-    "chain": "tsx scripts/chain.ts"
+    "chain": "tsx scripts/chain.ts",
+    "testnet:info": "tsx scripts/testnet-info.ts"
   },
   "devDependencies": {
     "@daily-draw/config": "workspace:*",

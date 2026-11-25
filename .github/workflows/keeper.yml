@@ -1,0 +1,70 @@
+# Keeper bot (apps/keeper) on a schedule: closes the day's draw after the 8:45pm WAT cutoff
+# (19:45 UTC) and claims for winners who haven't claimed 24 hours after settlement.
+# Each run does both and is safe to repeat, so the extra runs only retry what an earlier one missed.
+# Setup (docs/testnet-runbook.md, step 7): repository secret KEEPER_PRIVATE_KEY; optional
+# repository variables TESTNET_RPC_URL and TESTNET_NETWORK. Scheduled runs use the default branch.
+name: Keeper
+
+on:
+  schedule:
+    - cron: '47 19 * * *' # 8:47pm WAT, 2 minutes after the cutoff: close the draw
+    - cron: '17 20 * * *' # 9:17pm WAT: retry (GitHub may delay or skip a scheduled run) + claims
+    - cron: '17 8 * * *' # 9:17am WAT: claims, and a late close if both evening runs were missed
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Only look and log, send nothing
+        type: boolean
+        default: false
+      only:
+        description: Which tasks to run
+        type: choice
+        options: [close+claim, close, claim]
+        default: close+claim
+
+# Never two keepers at once; a queued run waits for the current one.
+concurrency:
+  group: keeper
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  keeper:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TESTNET_NETWORK: ${{ vars.TESTNET_NETWORK || 'base-sepolia' }}
+      TESTNET_RPC_URL: ${{ vars.TESTNET_RPC_URL || 'https://sepolia.base.org' }}
+      KEEPER_PRIVATE_KEY: ${{ secrets.KEEPER_PRIVATE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check for a deployment
+        id: deployment
+        run: |
+          if [ -f "packages/contracts/deployments/$TESTNET_NETWORK.json" ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::No $TESTNET_NETWORK deployment committed yet; nothing to keep."
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: pnpm/action-setup@v4
+        if: steps.deployment.outputs.found == 'true'
+      - uses: actions/setup-node@v4
+        if: steps.deployment.outputs.found == 'true'
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - name: Install
+        if: steps.deployment.outputs.found == 'true'
+        run: pnpm install --frozen-lockfile
+      - name: Build the contract ABIs
+        if: steps.deployment.outputs.found == 'true'
+        run: pnpm --filter @daily-draw/contracts build
+      - name: Run the keeper
+        if: steps.deployment.outputs.found == 'true'
+        env:
+          DRY_RUN: ${{ inputs.dry_run && 'true' || 'false' }}
+          KEEPER_TASKS: ${{ (inputs.only == 'close' || inputs.only == 'claim') && inputs.only || 'close,claim' }}
+        run: pnpm --filter @daily-draw/keeper start
