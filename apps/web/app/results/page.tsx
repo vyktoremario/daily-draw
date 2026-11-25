@@ -3,7 +3,7 @@
 import { formatUsdc } from '@daily-draw/shared';
 import Link from 'next/link';
 import { AppShell } from '../../components/AppShell';
-import { NumberBadge, num } from '../../components/ui';
+import { Icon, NumberBadge, num } from '../../components/ui';
 import {
   DrawStatus,
   numbersInDraw,
@@ -74,37 +74,62 @@ function DrawRow({
   const mine = numbersInDraw(purchases, id);
   const hasNumber = draw.status === DrawStatus.Settled || draw.status === DrawStatus.Swept;
   return (
-    <Link href={`/draw/${id}`} className="list-row" style={{ alignItems: 'flex-start' }}>
-      {hasNumber ? (
-        <NumberBadge value={draw.winningNumber} size="sm" />
-      ) : (
-        <span className="num num-sm" aria-hidden="true">
-          ··
-        </span>
-      )}
-      <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-        <span style={{ fontWeight: 600, fontSize: 15 }}>
-          {formatWatDate(draw.cutoff)} · #{id.toString()}
-        </span>
-        <span className="muted" style={{ fontSize: 13 }}>
-          {summary(draw)}
-        </span>
-        {mine.length > 0 && (
-          <span style={{ fontSize: 13 }}>
-            Your tickets:{' '}
-            {groupNumbers(mine)
-              .map(({ number, count }) => `${num(number)}${count > 1 ? ` ×${count}` : ''}`)
-              .join(', ')}
+    <div className="list-row" style={{ alignItems: 'flex-start' }}>
+      <Link
+        href={`/draw/${id}`}
+        style={{
+          display: 'flex',
+          flex: 1,
+          gap: 14,
+          minWidth: 0,
+          color: 'inherit',
+          textDecoration: 'none',
+        }}
+      >
+        {hasNumber ? (
+          <NumberBadge value={draw.winningNumber} size="sm" />
+        ) : (
+          <span className="num num-sm" aria-hidden="true">
+            ··
           </span>
         )}
-      </span>
-      {prize.tickets > 0n && !prize.claimed ? (
-        <span className="pill pill-gold" style={{ background: 'var(--gold)', color: 'var(--ink)' }}>
-          Claim {formatUsdc(prize.prize)}
+        <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+          <span style={{ fontWeight: 600, fontSize: 15 }}>
+            {formatWatDate(draw.cutoff)} · #{id.toString()}
+          </span>
+          <span className="muted" style={{ fontSize: 13 }}>
+            {summary(draw)}
+          </span>
+          {mine.length > 0 && (
+            <span style={{ fontSize: 13 }}>
+              Your tickets:{' '}
+              {groupNumbers(mine)
+                .map(({ number, count }) => `${num(number)}${count > 1 ? ` ×${count}` : ''}`)
+                .join(', ')}
+            </span>
+          )}
         </span>
-      ) : prize.claimed ? (
-        <span className="pill pill-green">Claimed</span>
-      ) : null}
-    </Link>
+        {prize.tickets > 0n && !prize.claimed ? (
+          <span
+            className="pill pill-gold"
+            style={{ background: 'var(--gold)', color: 'var(--ink)' }}
+          >
+            Claim {formatUsdc(prize.prize)}
+          </span>
+        ) : prize.claimed ? (
+          <span className="pill pill-green">Claimed</span>
+        ) : null}
+      </Link>
+      {hasNumber && (
+        <Link
+          href={`/verify/${id}`}
+          className="pill pill-grey"
+          style={{ textDecoration: 'none' }}
+          aria-label={`Verify draw #${id}`}
+        >
+          <Icon name="check" size={14} /> Verify
+        </Link>
+      )}
+    </div>
   );
 }
