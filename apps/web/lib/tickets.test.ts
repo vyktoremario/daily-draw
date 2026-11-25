@@ -3,6 +3,9 @@ import {
   DEFAULT_PRICING,
   availableBundles,
   bundleCost,
+  limitLine,
+  walletLimitOf,
+  withinLimit,
   formatFee,
   priceLine,
   pricingOf,
@@ -54,6 +57,22 @@ describe('bundles and fee', () => {
     expect(availableBundles(16)).toEqual([1, 2]);
     expect(availableBundles(19)).toEqual([1]);
     expect(availableBundles(20)).toEqual([]);
+  });
+
+  it("uses the open draw's own wallet limit", () => {
+    expect(walletLimitOf(undefined)).toBe(20); // still loading
+    expect(walletLimitOf({ params: { maxTicketsPerWallet: 10 } })).toBe(10);
+    expect(availableBundles(0, 10)).toEqual([1, 2, 5, 10]);
+    expect(availableBundles(5, 10)).toEqual([1, 2, 5]);
+    expect(availableBundles(10, 10)).toEqual([]);
+    expect(availableBundles(30, 50)).toEqual([1, 2, 5, 10]);
+  });
+
+  it('blocks a purchase that would go over the limit', () => {
+    expect(withinLimit(10, 10, 20)).toBe(true);
+    expect(withinLimit(11, 10, 20)).toBe(false);
+    expect(withinLimit(20, 1, 20)).toBe(false);
+    expect(limitLine(3, 20)).toBe('3 of 20 tickets today');
   });
 });
 
